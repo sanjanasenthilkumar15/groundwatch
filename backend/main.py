@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.service.prediction import (
@@ -53,6 +54,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Allow Vite dev server + any localhost origin
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:5174", "http://127.0.0.1:5174",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ==================================================
 # REQUEST MODEL
@@ -490,3 +502,62 @@ def manual_prediction(
                 )
         }
     }
+# ==================================================
+# SCENARIO SIMULATOR
+# ==================================================
+
+class ScenarioRequest(BaseModel):
+    rainfall_modifier: float
+
+@app.post("/stations/{station_name}/scenario")
+def station_scenario(
+    station_name: str,
+    request: ScenarioRequest
+):
+    # 1. Baseline
+    baseline_data = get_station_data(station_name)
+    if baseline_data is None:
+        raise HTTPException(status_code=404, detail="Station not found")
+        
+    reliability = get_station_reliability(station_name)
+    
+    baseline_pred = predict_groundwater(baseline_data)
+    baseline_gw = float(baseline_pred["prediction"])
+    baseline_risk = calculate_risk(
+        predicted_groundwater=baseline_gw,
+        current_groundwater=baseline_data["current_groundwater"],
+        gw_change_1m=baseline_data["gw_change_1m"],
+        rainfall_mm=baseline_data["rainfall_mm"],
+        reliability=reliability["reliability"]
+    )
+    baseline_forecast = generate_forecast(baseline_data)
+    
+    # 2. Scenario
+    scenario_data = baseline_data.copy()
+    scenario_data["rainfall_mm"] *= request.rainfall_modifier
+    
+    scenario_pred = predict_groundwater(scenario_data)
+    scenario_gw = float(scenario_pred["prediction"])
+    scenario_risk = calculate_risk(
+        predicted_groundwater=scenario_gw,
+        current_groundwater=scenario_data["current_groundwater"],
+        gw_change_1m=scenario_data["gw_change_1m"],
+        rainfall_mm=scenario_data["rainfall_mm"],
+        reliability=reliability["reliability"]
+    )
+    scenario_forecast = generate_forecast(scenario_data)
+
+    return {
+        "status": "success",
+        "baseline": {
+            "risk_level": baseline_risk["risk_level"],
+            "risk_score": baseline_risk["risk_score"],
+            "forecasts": baseline_forecast["forecasts"]
+        },
+        "scenario": {
+            "risk_level": scenario_risk["risk_level"],
+            "risk_score": scenario_risk["risk_score"],
+            "forecasts": scenario_forecast["forecasts"]
+        }
+    }
+

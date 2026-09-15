@@ -1,5 +1,26 @@
+# Python
 venv/
 __pycache__/
 *.pyc
+*.pyo
 .env
+.env.local
+
+# IDE
 .vscode/
+.idea/
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Scratch/debug scripts
+frontend/replace.cjs
+frontend/check.cjs
+frontend/check2.cjs
+frontend/fix_*.cjs
+
+# OS
+.DS_Store
+Thumbs.db

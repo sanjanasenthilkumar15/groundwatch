@@ -1,0 +1,197 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --color-primary: #08917D;
+  --color-secondary: #D85A2A;
+  --color-accent: #F59E0B;
+  
+  --color-success: #2F9E44;
+  --color-warning: #F0A80C;
+  --color-error: #D62828;
+  --color-info: #2E7DC9;
+  
+  --color-risk-normal: #2F9E44;
+  --color-risk-watch: #F0A80C;
+  --color-risk-high: #E2691A;
+  --color-risk-critical: #D62828;
+
+  --color-surface-page: #FAF9F5;
+  --color-surface-card: #F0EEE5;
+  --color-border-ui: #D8D5C9;
+  
+  --color-text-primary: #211F1B;
+  --color-text-secondary: #5C5A52;
+  --color-text-muted: #9B998E;
+}
+
+:root[data-theme="dark"] {
+  --color-primary: #3FC9AF;
+  --color-secondary: #F0824A;
+  
+  --color-surface-page: #15140F;
+  --color-surface-card: #211F1B;
+  --color-border-ui: #3A382F;
+  
+  --color-text-primary: #F0EEE5;
+  --color-text-secondary: #C2C0B6;
+  --color-text-muted: #8A897F;
+}
+
+@theme {
+  --font-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+  --font-tamil: 'Noto Sans Tamil', 'IBM Plex Sans', sans-serif;
+  
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-info: var(--color-info);
+  
+  --color-risk-normal: var(--color-risk-normal);
+  --color-risk-watch: var(--color-risk-watch);
+  --color-risk-high: var(--color-risk-high);
+  --color-risk-critical: var(--color-risk-critical);
+  
+  --color-surface-page: var(--color-surface-page);
+  --color-surface-card: var(--color-surface-card);
+  --color-border-ui: var(--color-border-ui);
+  
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--color-surface-page);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-tamil, [lang="ta"] {
+  font-family: var(--font-tamil);
+  line-height: 1.75;
+}
+
+.font-mono, .num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+
+.gw-card {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-ui);
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.gw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 150ms ease-in-out;
+}
+.gw-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.gw-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-secondary);
+}
+
+.advisory-block {
+  border: 1px solid var(--color-secondary);
+  border-radius: 8px;
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+.advisory-header {
+  background: var(--color-secondary);
+  padding: 12px 16px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.advisory-en { padding: 16px; color: var(--color-text-primary); font-size: 14px; }
+.advisory-sep { height: 1px; background: var(--color-border-ui); margin: 0 16px; }
+.advisory-ta { padding: 16px; color: var(--color-text-primary); font-family: var(--font-tamil); font-size: 15px; }
+
+/* Filter chips */
+.gw-chip {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  transition: all 150ms ease;
+  border: 1px solid var(--color-border-ui);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+}
+.gw-chip:hover { border-color: var(--color-text-secondary); color: var(--color-text-primary); }
+.gw-chip-active-all { background: var(--color-border-ui); color: var(--color-text-primary); }
+.gw-chip-active-critical { background: var(--color-risk-critical); border-color: var(--color-risk-critical); color: #ffffff; }
+.gw-chip-active-high { background: var(--color-risk-high); border-color: var(--color-risk-high); color: #ffffff; }
+.gw-chip-active-moderate { background: var(--color-risk-watch); border-color: var(--color-risk-watch); color: #3D2E06; }
+.gw-chip-active-low { background: var(--color-risk-normal); border-color: var(--color-risk-normal); color: #ffffff; }
+
+.leaflet-container { background: var(--color-surface-page) !important; }
+.leaflet-control-zoom a { background: var(--color-surface-card) !important; color: var(--color-text-secondary) !important; border-color: var(--color-border-ui) !important; }
+.leaflet-popup-content-wrapper { background: var(--color-surface-card) !important; color: var(--color-text-primary) !important; border: 1px solid var(--color-border-ui) !important; border-radius: 6px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
+.leaflet-popup-tip { background: var(--color-surface-card) !important; }
+
+:root[data-theme="dark"] .map-tiles-dark {
+  filter: invert(100%) hue-rotate(180deg) brightness(0.85) contrast(1.2) !important;
+}
+
+/* Loaders */
+.gw-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-ui);
+}
+.gw-skeleton::after {
+  content: "";
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-text-primary) 5%, transparent), transparent);
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* Critical Pulse */
+@keyframes critical-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-risk-critical) 60%, transparent); }
+  70%  { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.critical-pulse-ring { animation: critical-pulse 2s infinite; }

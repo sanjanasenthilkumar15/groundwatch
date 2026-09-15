@@ -120,6 +120,14 @@ def generate_intelligence(station_name: str) -> dict:
         "risk": risk,
 
         "reliability": reliability,
+        
+        "satellite": {
+            "ndvi": data.get("ndvi"),
+            "lst_celsius": data.get("lst_celsius"),
+            "et_mm": data.get("et_mm"),
+            "soil_moisture": data.get("soil_moisture"),
+            "ndvi_zscore": data.get("ndvi_zscore")
+        },
 
         "why": why,
 

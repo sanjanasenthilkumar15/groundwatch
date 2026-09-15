@@ -1,261 +1,130 @@
 import pandas as pd
+import math
 from pathlib import Path
 
-
-# ==================================================
-# BASE DIRECTORY
-# ==================================================
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# ==================================================
-# DATA PATH
-# ==================================================
-
-DATA_PATH = (
-    BASE_DIR
-    / "data"
-    / "Salem_ML_Ready_Monthly.csv"
-)
-
-
-# ==================================================
-# LOAD CSV
-# ==================================================
+DATA_PATH = BASE_DIR / "data" / "Salem_ML_Ready_Satellite.csv"
 
 print("Loading CSV...")
 print("CSV path:", DATA_PATH)
-
 df = pd.read_csv(DATA_PATH)
-
 print("CSV loaded!")
 print("Rows:", len(df))
 print("Columns:", len(df.columns))
 
-
-# ==================================================
-# CONVERT MONTH TO DATETIME
-# ==================================================
-
 df["month"] = pd.to_datetime(df["month"])
 
-
-# ==================================================
-# GET ALL STATIONS
-# ==================================================
+def safe_float(val, default=0.0):
+    """Convert val to float; return default if None, NaN, or infinite."""
+    if val is None:
+        return default
+    try:
+        f = float(val)
+        return default if (math.isnan(f) or math.isinf(f)) else f
+    except (TypeError, ValueError):
+        return default
 
 def get_stations():
-
-    return sorted(
-        df["Station"]
-        .dropna()
-        .unique()
-        .tolist()
-    )
-
-
-# ==================================================
-# GET LATEST STATION DATA
-# ==================================================
+    return sorted(df["Station"].dropna().unique().tolist())
 
 def get_station_data(station_name: str):
+    station_df = df[df["Station"].str.lower() == station_name.lower()].copy()
+    if station_df.empty: return None
 
-    station_df = df[
-        df["Station"].str.lower()
-        == station_name.lower()
-    ]
+    # Calculate on-the-fly features that training used
+    station_df = station_df.sort_values("month")
+    
+    # Lag 1
+    for col in ["ndvi", "lst_celsius", "et_mm", "soil_moisture"]:
+        if col in station_df.columns:
+            station_df[f"{col}_lag_1"] = station_df[col].shift(1)
+            
+    # Rolling 3 & Z-Score for NDVI
+    if "ndvi" in station_df.columns:
+        station_df["ndvi_rolling_3"] = station_df["ndvi"].rolling(3, min_periods=1).mean()
+        ndvi_mean = station_df["ndvi"].mean()
+        ndvi_std  = station_df["ndvi"].std()
+        if ndvi_std and ndvi_std > 0:
+            station_df["ndvi_zscore"] = (station_df["ndvi"] - ndvi_mean) / ndvi_std
+        else:
+            station_df["ndvi_zscore"] = 0.0
 
-    if station_df.empty:
+    latest = station_df.iloc[-1]
 
-        return None
-
-    # Get latest available observation
-    latest = (
-        station_df
-        .sort_values("month")
-        .iloc[-1]
-    )
+    # sf = nullable float (for display-only satellite fields shown in UI)
+    def sf(val):
+        return float(val) if pd.notna(val) else None
 
     return {
+        "station": latest["Station"],
+        "month": latest["month"].strftime("%Y-%m-%d"),
+        "latitude":  sf(latest.get("latitude")),
+        "longitude": sf(latest.get("longitude")),
 
-        "station":
-            latest["Station"],
+        # Core numeric fields — must NEVER be None (used in math/comparisons)
+        "current_groundwater": safe_float(latest.get("groundwater_level_m")),
+        "rainfall_mm":    safe_float(latest.get("rainfall_mm"),  50.0),
+        "gw_lag_1":       safe_float(latest.get("gw_lag_1")),
+        "gw_lag_2":       safe_float(latest.get("gw_lag_2")),
+        "gw_lag_3":       safe_float(latest.get("gw_lag_3")),
+        "gw_rolling_3":   safe_float(latest.get("gw_rolling_3")),
+        "gw_change_1m":   safe_float(latest.get("gw_change_1m")),
+        "rain_lag_1":     safe_float(latest.get("rain_lag_1"),   50.0),
+        "rain_lag_2":     safe_float(latest.get("rain_lag_2"),   50.0),
+        "rain_lag_3":     safe_float(latest.get("rain_lag_3"),   50.0),
+        "rain_rolling_3": safe_float(latest.get("rain_rolling_3"), 50.0),
+        "month_num": int(latest["month_num"]) if pd.notna(latest.get("month_num")) else 1,
+        "year":      int(latest["year"])      if pd.notna(latest.get("year"))      else 2024,
 
-        "month":
-            latest["month"].strftime("%Y-%m-%d"),
+        # Satellite base — display only, may legitimately be None
+        "ndvi":          sf(latest.get("ndvi")),
+        "evi":           sf(latest.get("evi")),
+        "lst_celsius":   sf(latest.get("lst_celsius")),
+        "et_mm":         sf(latest.get("et_mm")),
+        "soil_moisture": sf(latest.get("soil_moisture")),
 
-        "latitude":
-            float(latest["latitude"]),
-
-        "longitude":
-            float(latest["longitude"]),
-
-        "current_groundwater":
-            float(latest["groundwater_level_m"]),
-
-        "rainfall_mm":
-            float(latest["rainfall_mm"]),
-
-        "gw_lag_1":
-            float(latest["gw_lag_1"]),
-
-        "gw_lag_2":
-            float(latest["gw_lag_2"]),
-
-        "gw_lag_3":
-            float(latest["gw_lag_3"]),
-
-        "gw_rolling_3":
-            float(latest["gw_rolling_3"]),
-
-        "gw_change_1m":
-            float(latest["gw_change_1m"]),
-
-        "rain_lag_1":
-            float(latest["rain_lag_1"]),
-
-        "rain_lag_2":
-            float(latest["rain_lag_2"]),
-
-        "rain_lag_3":
-            float(latest["rain_lag_3"]),
-
-        "rain_rolling_3":
-            float(latest["rain_rolling_3"]),
-
-        "month_num":
-            int(latest["month_num"]),
-
-        "year":
-            int(latest["year"])
+        # Satellite engineered — model features, default to 0 if missing
+        "ndvi_lag_1":         safe_float(latest.get("ndvi_lag_1")),
+        "lst_lag_1":          safe_float(latest.get("lst_celsius_lag_1")),
+        "et_lag_1":           safe_float(latest.get("et_mm_lag_1")),
+        "soil_moisture_lag_1":safe_float(latest.get("soil_moisture_lag_1")),
+        "ndvi_rolling_3":     safe_float(latest.get("ndvi_rolling_3")),
+        "ndvi_zscore":        safe_float(latest.get("ndvi_zscore")),
     }
 
-
-# ==================================================
-# STATION RELIABILITY
-# ==================================================
-
 def get_station_reliability(station_name: str):
+    station_df = df[df["Station"].str.lower() == station_name.lower()].copy()
+    if station_df.empty: return None
 
-    # --------------------------------------------------
-    # GET STATION DATA
-    # --------------------------------------------------
-
-    station_df = df[
-        df["Station"].str.lower()
-        == station_name.lower()
-    ].copy()
-
-    if station_df.empty:
-
-        return None
-
-    # --------------------------------------------------
-    # MODEL TRAINING PERIOD
-    # --------------------------------------------------
-
-    training_df = station_df[
-        station_df["month"]
-        <= pd.Timestamp("2024-12-01")
-    ].copy()
-
+    training_df = station_df[station_df["month"] <= pd.Timestamp("2024-12-01")]
     training_rows = len(training_df)
 
-    # --------------------------------------------------
-    # TRAINING GROUNDWATER RANGE
-    # --------------------------------------------------
-
     if training_rows > 0:
-
-        training_min = float(
-            training_df[
-                "groundwater_level_m"
-            ].min()
-        )
-
-        training_max = float(
-            training_df[
-                "groundwater_level_m"
-            ].max()
-        )
-
+        training_min = float(training_df["groundwater_level_m"].min())
+        training_max = float(training_df["groundwater_level_m"].max())
     else:
-
         training_min = None
         training_max = None
 
-    # --------------------------------------------------
-    # LATEST OBSERVATION
-    # --------------------------------------------------
-
-    latest = (
-        station_df
-        .sort_values("month")
-        .iloc[-1]
-    )
-
-    current_groundwater = float(
-        latest["groundwater_level_m"]
-    )
-
-    # --------------------------------------------------
-    # CHECK TRAINING RANGE
-    # --------------------------------------------------
+    latest = station_df.sort_values("month").iloc[-1]
+    current_groundwater = float(latest["groundwater_level_m"])
 
     outside_training_range = False
-
-    if (
-        training_min is not None
-        and training_max is not None
-    ):
-
-        outside_training_range = (
-            current_groundwater < training_min
-            or current_groundwater > training_max
-        )
-
-    # --------------------------------------------------
-    # RELIABILITY CLASSIFICATION
-    # --------------------------------------------------
+    if training_min is not None and training_max is not None:
+        outside_training_range = (current_groundwater < training_min or current_groundwater > training_max)
 
     if training_rows < 5:
-
         reliability = "very_low"
-
-    elif training_rows < 10:
-
+    elif training_rows < 10 or outside_training_range:
         reliability = "low"
-
-    elif outside_training_range:
-
-        reliability = "low"
-
     else:
-
         reliability = "normal"
 
-    # --------------------------------------------------
-    # RETURN RELIABILITY INFORMATION
-    # --------------------------------------------------
-
     return {
-
-        "training_rows":
-            training_rows,
-
-        "training_groundwater_min":
-            training_min,
-
-        "training_groundwater_max":
-            training_max,
-
-        "current_groundwater":
-            current_groundwater,
-
-        "outside_training_range":
-            outside_training_range,
-
-        "reliability":
-            reliability
+        "training_rows": training_rows,
+        "training_groundwater_min": training_min,
+        "training_groundwater_max": training_max,
+        "current_groundwater": current_groundwater,
+        "outside_training_range": outside_training_range,
+        "reliability": reliability
     }

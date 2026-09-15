@@ -12,6 +12,15 @@ def calculate_risk(
 ) -> dict:
 
     # --------------------------------------------------
+    # NULL GUARD — coerce None/NaN to safe defaults
+    # --------------------------------------------------
+
+    predicted_groundwater = float(predicted_groundwater) if predicted_groundwater is not None else float(current_groundwater or 0)
+    current_groundwater   = float(current_groundwater)   if current_groundwater   is not None else 0.0
+    gw_change_1m          = float(gw_change_1m)          if gw_change_1m          is not None else 0.0
+    rainfall_mm           = float(rainfall_mm)           if rainfall_mm           is not None else 50.0
+
+    # --------------------------------------------------
     # INITIAL SCORE
     # --------------------------------------------------
 
