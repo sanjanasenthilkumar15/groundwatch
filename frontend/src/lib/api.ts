@@ -1,6 +1,7 @@
-// Dev: Vite proxies /api → http://localhost:8000
-// Prod: Vercel routes /api/* → api/index.py (same domain, no CORS)
-const BASE = '/api'
+// In development: proxied through Vite to http://localhost:8000
+// In production:  set VITE_API_URL to your Render backend URL
+const BASE = import.meta.env.VITE_API_URL ?? '/api'
+
 
 
 
