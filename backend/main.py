@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -54,12 +55,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow Vite dev server + any localhost origin
+
+# ==================================================
+# CORS CONFIGURATION
+# ==================================================
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173", "http://127.0.0.1:5173",
-        "http://localhost:5174", "http://127.0.0.1:5174",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "*",
     ],
     allow_credentials=False,
@@ -67,8 +74,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ==================================================
-# REQUEST MODEL
+# REQUEST MODELS
 # ==================================================
 
 class PredictionRequest(BaseModel):
@@ -94,6 +102,19 @@ class PredictionRequest(BaseModel):
     year: int
 
     current_groundwater: float
+
+
+class ScenarioRequest(BaseModel):
+
+    rainfall_modifier: float
+
+
+class SMSRequest(BaseModel):
+
+    station_name: str
+    risk_level: str
+    current_groundwater: float
+    gw_change_1m: float
 
 
 # ==================================================
@@ -404,8 +425,7 @@ def manual_prediction(
     )
 
     # ----------------------------------------------
-    # Manual prediction does not contain
-    # station date context
+    # Manual prediction forecast
     # ----------------------------------------------
 
     forecast = {
@@ -503,64 +523,268 @@ def manual_prediction(
                 )
         }
     }
+
+
 # ==================================================
 # SCENARIO SIMULATOR
 # ==================================================
 
-class ScenarioRequest(BaseModel):
-    rainfall_modifier: float
-
-@app.post("/stations/{station_name}/scenario")
+@app.post(
+    "/stations/{station_name}/scenario"
+)
 def station_scenario(
+
     station_name: str,
+
     request: ScenarioRequest
 ):
-    # 1. Baseline
-    baseline_data = get_station_data(station_name)
+
+    # ----------------------------------------------
+    # Baseline data
+    # ----------------------------------------------
+
+    baseline_data = get_station_data(
+        station_name
+    )
+
     if baseline_data is None:
-        raise HTTPException(status_code=404, detail="Station not found")
-        
-    reliability = get_station_reliability(station_name)
-    
-    baseline_pred = predict_groundwater(baseline_data)
-    baseline_gw = float(baseline_pred["prediction"])
+
+        raise HTTPException(
+            status_code=404,
+            detail="Station not found"
+        )
+
+    # ----------------------------------------------
+    # Reliability
+    # ----------------------------------------------
+
+    reliability = get_station_reliability(
+        station_name
+    )
+
+    # ----------------------------------------------
+    # Baseline prediction
+    # ----------------------------------------------
+
+    baseline_pred = predict_groundwater(
+        baseline_data
+    )
+
+    baseline_gw = float(
+        baseline_pred["prediction"]
+    )
+
     baseline_risk = calculate_risk(
-        predicted_groundwater=baseline_gw,
-        current_groundwater=baseline_data["current_groundwater"],
-        gw_change_1m=baseline_data["gw_change_1m"],
-        rainfall_mm=baseline_data["rainfall_mm"],
-        reliability=reliability["reliability"]
+
+        predicted_groundwater=
+            baseline_gw,
+
+        current_groundwater=
+            baseline_data[
+                "current_groundwater"
+            ],
+
+        gw_change_1m=
+            baseline_data[
+                "gw_change_1m"
+            ],
+
+        rainfall_mm=
+            baseline_data[
+                "rainfall_mm"
+            ],
+
+        reliability=
+            reliability[
+                "reliability"
+            ]
     )
-    baseline_forecast = generate_forecast(baseline_data)
-    
-    # 2. Scenario
+
+    baseline_forecast = generate_forecast(
+        baseline_data
+    )
+
+    # ----------------------------------------------
+    # Scenario data
+    # ----------------------------------------------
+
     scenario_data = baseline_data.copy()
-    scenario_data["rainfall_mm"] *= request.rainfall_modifier
-    
-    scenario_pred = predict_groundwater(scenario_data)
-    scenario_gw = float(scenario_pred["prediction"])
-    scenario_risk = calculate_risk(
-        predicted_groundwater=scenario_gw,
-        current_groundwater=scenario_data["current_groundwater"],
-        gw_change_1m=scenario_data["gw_change_1m"],
-        rainfall_mm=scenario_data["rainfall_mm"],
-        reliability=reliability["reliability"]
+
+    scenario_data["rainfall_mm"] *= (
+        request.rainfall_modifier
     )
-    scenario_forecast = generate_forecast(scenario_data)
+
+    # ----------------------------------------------
+    # Scenario prediction
+    # ----------------------------------------------
+
+    scenario_pred = predict_groundwater(
+        scenario_data
+    )
+
+    scenario_gw = float(
+        scenario_pred["prediction"]
+    )
+
+    scenario_risk = calculate_risk(
+
+        predicted_groundwater=
+            scenario_gw,
+
+        current_groundwater=
+            scenario_data[
+                "current_groundwater"
+            ],
+
+        gw_change_1m=
+            scenario_data[
+                "gw_change_1m"
+            ],
+
+        rainfall_mm=
+            scenario_data[
+                "rainfall_mm"
+            ],
+
+        reliability=
+            reliability[
+                "reliability"
+            ]
+    )
+
+    scenario_forecast = generate_forecast(
+        scenario_data
+    )
+
+    # ----------------------------------------------
+    # Response
+    # ----------------------------------------------
 
     return {
+
         "status": "success",
+
         "baseline": {
-            "risk_level": baseline_risk["risk_level"],
-            "risk_score": baseline_risk["risk_score"],
-            "forecasts": baseline_forecast["forecasts"]
+
+            "risk_level":
+                baseline_risk[
+                    "risk_level"
+                ],
+
+            "risk_score":
+                baseline_risk[
+                    "risk_score"
+                ],
+
+            "forecasts":
+                baseline_forecast[
+                    "forecasts"
+                ]
         },
+
         "scenario": {
-            "risk_level": scenario_risk["risk_level"],
-            "risk_score": scenario_risk["risk_score"],
-            "forecasts": scenario_forecast["forecasts"]
+
+            "risk_level":
+                scenario_risk[
+                    "risk_level"
+                ],
+
+            "risk_score":
+                scenario_risk[
+                    "risk_score"
+                ],
+
+            "forecasts":
+                scenario_forecast[
+                    "forecasts"
+                ]
         }
     }
 
 
+# ==================================================
+# DEMO ADVISORY SMS PREVIEW
+# ==================================================
 
+@app.post(
+    "/send-advisory-sms-demo"
+)
+def send_advisory_sms_demo(
+    request: SMSRequest
+):
+
+    """
+    Generate a GroundWatch advisory SMS preview.
+
+    Uses the advisory.py function.
+
+    No real SMS is sent.
+    """
+
+    # ----------------------------------------------
+    # Generate advisory
+    # ----------------------------------------------
+
+    advisory = generate_advisory(
+
+        risk_level=
+            request.risk_level,
+
+        gw_change_1m=
+            request.gw_change_1m
+    )
+
+    # ----------------------------------------------
+    # Prepare SMS message
+    # ----------------------------------------------
+
+    sms_message = (
+
+        f"GroundWatch Alert\n"
+
+        f"Station: "
+        f"{request.station_name}\n"
+
+        f"Risk Level: "
+        f"{request.risk_level}\n"
+
+        f"Current Groundwater: "
+        f"{request.current_groundwater} m\n\n"
+
+        f"English Advisory:\n"
+        f"{advisory['english']}\n\n"
+
+        f"Tamil Advisory:\n"
+        f"{advisory['tamil']}\n\n"
+
+        f"Officer Action:\n"
+        f"{advisory['officer_action']}"
+    )
+
+    # ----------------------------------------------
+    # Rapid decline warning
+    # ----------------------------------------------
+
+    if advisory["rapid_decline_alert"]:
+
+        sms_message += (
+
+            "\n\nRapid Decline Alert:\n"
+
+            f"{advisory['rapid_decline_alert']}"
+        )
+
+    # ----------------------------------------------
+    # Demo response
+    # ----------------------------------------------
+
+    return {
+
+        "status": "demo",
+
+        "message":
+            sms_message,
+
+        "delivery":
+            "Preview only - SMS not sent"
+    }
