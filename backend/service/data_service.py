@@ -14,6 +14,22 @@ print("Columns:", len(df.columns))
 
 df["month"] = pd.to_datetime(df["month"])
 
+BLOCKS_PATH = BASE_DIR / "data" / "station_blocks.csv"
+_blocks_df = pd.read_csv(BLOCKS_PATH)
+_station_block_map = {
+    str(row["station"]).strip().lower(): str(row["block"]).strip()
+    for _, row in _blocks_df.iterrows()
+    if pd.notna(row["block"]) and str(row["block"]).strip()
+}
+
+def get_station_block(station_name: str):
+    """Returns the block/taluk a station belongs to, or None if unassigned/unknown."""
+    return _station_block_map.get(station_name.strip().lower())
+
+def get_blocks():
+    """Distinct list of blocks/taluks that have at least one assigned station."""
+    return sorted(set(_station_block_map.values()))
+
 def safe_float(val, default=0.0):
     """Convert val to float; return default if None, NaN, or infinite."""
     if val is None:

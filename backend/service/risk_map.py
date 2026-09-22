@@ -7,7 +7,8 @@ import math
 from backend.service.data_service import (
     get_stations,
     get_station_data,
-    get_station_reliability
+    get_station_reliability,
+    get_station_block
 )
 
 from backend.service.prediction import predict_groundwater
@@ -29,9 +30,12 @@ def clean_value(value):
     return value
 
 
-def generate_risk_map() -> dict:
+def generate_risk_map(block: str | None = None) -> dict:
 
     stations = get_stations()
+
+    if block:
+        stations = [s for s in stations if get_station_block(s) == block]
 
     station_results = []
 

@@ -131,10 +131,14 @@ export default function BlockOfficerPage() {
             <div className="p-8 text-center text-text-secondary font-ui text-sm">No stations match your filter.</div>
           ) : (
             <div>
-              {visible.map((s, i) => (
+              {visible.map((s, i) => {
+                const needsAction = s.risk_level === 'CRITICAL' || s.risk_level === 'HIGH'
+                return (
                 <Link
                   key={s.station}
-                  to={`/block/${encodeURIComponent(s.station)}`}
+                  to={needsAction
+                    ? `/intervention/${encodeURIComponent(s.station)}`
+                    : `/block/${encodeURIComponent(s.station)}`}
                   className={`grid grid-cols-12 gap-2 px-5 py-4 items-center border-b border-border-ui hover:bg-surface-card transition-colors group ${
                     i % 2 === 0 ? '' : 'bg-surface-page/50'
                   } ${s.risk_level === 'CRITICAL' ? 'border-l-4 border-l-risk-critical' : s.risk_level === 'HIGH' ? 'border-l-2 border-l-risk-high' : ''}`}
@@ -154,11 +158,15 @@ export default function BlockOfficerPage() {
                   <div className="col-span-1 font-mono text-sm text-text-secondary">
                     {s.risk_score ?? '—'}
                   </div>
-                  <div className="col-span-1 text-right">
-                    <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary transition-colors ml-auto" />
+                  <div className="col-span-1 text-right flex items-center justify-end gap-1.5">
+                    {needsAction && (
+                      <span className="hidden md:inline text-[10px] font-bold font-ui uppercase tracking-wider text-risk-high">Action Plan</span>
+                    )}
+                    <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary transition-colors" />
                   </div>
                 </Link>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

@@ -209,7 +209,7 @@ export default function AgricultureOfficerPage() {
           {[
             { to: '/risk-map',          label: 'Geospatial Risk Map',     icon: '🗺️',  desc: 'View all stations on map' },
             { to: '/alerts',            label: 'Active Alerts',           icon: '🔔',  desc: 'Stations needing attention' },
-            { to: '/stress/Kullampatti',label: 'Crop Stress Analysis',    icon: '🌾',  desc: 'ET · NDVI · Soil moisture' },
+            { to: `/stress/${encodeURIComponent(needsAdvisory[0]?.station ?? 'Kullampatti')}`, label: 'Crop Stress Analysis', icon: '🌾', desc: 'ET · NDVI · Soil moisture' },
           ].map(link => (
             <Link
               key={link.to}

@@ -1,37 +1,28 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Droplets, LayoutDashboard, Map as MapIcon, Bell, LogOut, Moon, Sun } from 'lucide-react'
-import { useRole } from '../lib/RoleContext'
+import { useRole, ROUTE_BY_ROLE } from '../lib/RoleContext'
 import { useTheme } from '../lib/ThemeContext'
 
+const LABEL_BY_ROLE: Record<string, string> = {
+  district: 'Dashboard',
+  block: 'Block Console',
+  agriculture: 'Agriculture',
+  admin: 'Admin',
+}
+
 export default function Nav() {
-  const { role, setRole } = useRole()
+  const { role, officer, logout } = useRole()
   const { theme, setTheme } = useTheme()
   const loc = useLocation()
   const navigate = useNavigate()
 
-  if (role === 'farmer') {
-    return (
-      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-surface-card border-t border-border-ui z-50 flex items-center justify-around px-4">
-        <Link to="/farmer" className={`flex flex-col items-center gap-1 ${loc.pathname === '/farmer' ? 'text-primary' : 'text-text-secondary'}`}>
-          <Droplets className="w-5 h-5" />
-          <span className="text-[10px] font-semibold font-ui">தற்போதைய நிலை</span>
-        </Link>
-        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex flex-col items-center gap-1 text-text-secondary">
-          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          <span className="text-[10px] font-semibold font-ui">{theme === 'dark' ? 'Light' : 'Dark'}</span>
-        </button>
-        <button onClick={() => { setRole(null); navigate('/login') }} className="flex flex-col items-center gap-1 text-text-secondary">
-          <LogOut className="w-5 h-5" />
-          <span className="text-[10px] font-semibold font-ui">வெளியேறு</span>
-        </button>
-      </nav>
-    )
-  }
+  const homeTo    = (role && ROUTE_BY_ROLE[role]) || '/dashboard'
+  const homeLabel = (role && LABEL_BY_ROLE[role]) || 'Dashboard'
 
   const links = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/risk-map',  label: 'Risk Map',  icon: MapIcon },
-    { to: '/alerts',    label: 'Alerts',    icon: Bell },
+    { to: homeTo,       label: homeLabel,   icon: LayoutDashboard },
+    { to: '/risk-map',  label: 'Risk Map', icon: MapIcon },
+    { to: '/alerts',    label: 'Alerts',   icon: Bell },
   ]
 
   return (
@@ -57,10 +48,13 @@ export default function Nav() {
         <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-1.5 text-text-secondary hover:text-text-primary transition-colors">
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
-        <div className="px-2.5 py-1 rounded-sm border-0 bg-secondary text-white text-[10px] font-bold uppercase tracking-wider font-mono">
-          {role ? role.replace('_', ' ') : 'OFFICER'}
+        <div className="hidden md:block text-right leading-tight">
+          <div className="text-xs font-semibold text-text-primary">{officer?.display_name ?? 'Officer'}</div>
+          <div className="text-[10px] text-text-secondary uppercase tracking-wider font-mono">
+            {role ?? 'officer'}{officer?.assigned_block ? ` · ${officer.assigned_block}` : ''}
+          </div>
         </div>
-        <button onClick={() => { setRole(null); navigate('/login') }} className="p-1.5 text-text-secondary hover:text-text-primary transition-colors">
+        <button onClick={() => { logout(); navigate('/login') }} className="p-1.5 text-text-secondary hover:text-text-primary transition-colors">
           <LogOut className="w-4 h-4" />
         </button>
       </div>

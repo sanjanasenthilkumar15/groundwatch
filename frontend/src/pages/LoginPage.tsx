@@ -1,57 +1,31 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Droplets, ChevronRight, LayoutDashboard, ClipboardList, Leaf, Users } from 'lucide-react'
-import { useRole } from '../lib/RoleContext'
-
-const ROLES = [
-  {
-    id: 'district',
-    label: 'District Officer',
-    ta: 'மாவட்ட அதிகாரி',
-    description: 'Command dashboard · Priority intervention list · All-station KPIs',
-    icon: LayoutDashboard,
-    route: '/dashboard',
-    accent: 'var(--color-primary)',
-  },
-  {
-    id: 'block',
-    label: 'Block / Taluk Officer',
-    ta: 'வட்ட அதிகாரி',
-    description: 'Station-level field console · Search & filter · Intervention planning',
-    icon: ClipboardList,
-    route: '/block-dashboard',
-    accent: 'var(--color-secondary)',
-  },
-  {
-    id: 'agriculture',
-    label: 'Agriculture Officer',
-    ta: 'வேளாண்மை அதிகாரி',
-    description: 'Crop advisory status · Irrigation stress zones · Seasonal outlook',
-    icon: Leaf,
-    route: '/agriculture',
-    accent: 'var(--color-success)',
-  },
-  {
-    id: 'farmer',
-    label: 'Farmer',
-    ta: 'விவசாயி',
-    description: 'Simple advisory in Tamil & English · Well status · SMS alert',
-    icon: Users,
-    route: '/farmer',
-    accent: 'var(--color-accent)',
-  },
-]
+import { Droplets, ChevronRight, LogIn } from 'lucide-react'
+import { useRole, ROUTE_BY_ROLE } from '../lib/RoleContext'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { setRole } = useRole()
-  const [selected, setSelected] = useState<string | null>(null)
+  const { login } = useRole()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError]       = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  const proceed = () => {
-    if (!selected) return
-    const role = ROLES.find(r => r.id === selected)!
-    setRole(selected as any)
-    navigate(role.route)
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    if (!username.trim() || !password) {
+      setError('Enter your username and password.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const officer = await login(username.trim(), password)
+      navigate(ROUTE_BY_ROLE[officer.role] ?? '/dashboard')
+    } catch (e: any) {
+      setError(e.message || 'Login failed. Check your username and password.')
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -72,65 +46,47 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Role cards */}
-        <div className="space-y-2.5">
-          <div className="gw-section-label mb-4">Select your role to continue</div>
-          {ROLES.map(r => {
-            const isSelected = selected === r.id
-            return (
-              <button
-                key={r.id}
-                onClick={() => setSelected(r.id)}
-                className="w-full text-left p-4 rounded-lg border-2 transition-all focus:outline-none"
-                style={{
-                  borderColor: isSelected ? r.accent : 'var(--color-border-ui)',
-                  background: isSelected
-                    ? `color-mix(in srgb, ${r.accent} 12%, var(--color-surface-card))`
-                    : 'var(--color-surface-card)',
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Icon pip */}
-                  <div
-                    className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: isSelected ? r.accent : 'var(--color-border-ui)' }}
-                  >
-                    <r.icon className="w-4 h-4" style={{ color: isSelected ? '#fff' : 'var(--color-text-secondary)' }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold font-ui text-sm text-text-primary">{r.label}</div>
-                    <div className="font-tamil text-xs text-text-secondary mt-0.5">{r.ta}</div>
-                    <div className="text-xs text-text-muted font-ui mt-1 leading-relaxed">{r.description}</div>
-                  </div>
-                  {/* Radio dot */}
-                  <div
-                    className="w-4 h-4 rounded-full border-2 shrink-0 mt-1 transition-all"
-                    style={{
-                      borderColor: isSelected ? r.accent : 'var(--color-border-ui)',
-                      background: isSelected ? r.accent : 'transparent',
-                    }}
-                  />
-                </div>
-              </button>
-            )
-          })}
-        </div>
+        {/* Officer login form */}
+        <form onSubmit={submit} className="gw-card space-y-4">
+          <div className="gw-section-label mb-1 flex items-center gap-2">
+            <LogIn className="w-4 h-4" /> Officer Login
+          </div>
 
-        {/* CTA */}
-        <button
-          onClick={proceed}
-          disabled={!selected}
-          className="w-full py-3 rounded-lg font-ui font-bold text-base flex items-center justify-center gap-2 transition-all"
-          style={{
-            background: selected
-              ? (ROLES.find(r => r.id === selected)?.accent ?? 'var(--color-primary)')
-              : 'var(--color-border-ui)',
-            color: selected ? '#fff' : 'var(--color-text-muted)',
-            cursor: selected ? 'pointer' : 'not-allowed',
-          }}
-        >
-          Enter Dashboard <ChevronRight className="w-4 h-4" />
-        </button>
+          <div>
+            <label className="block text-xs font-ui font-semibold text-text-secondary uppercase tracking-wider mb-2">
+              Username
+            </label>
+            <input
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              autoComplete="username"
+              className="w-full rounded-md border border-border-ui bg-surface-card text-text-primary px-4 py-3 text-base font-ui focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-ui font-semibold text-text-secondary uppercase tracking-wider mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className="w-full rounded-md border border-border-ui bg-surface-card text-text-primary px-4 py-3 text-base font-ui focus:outline-none"
+            />
+          </div>
+
+          {error && <p className="text-risk-critical text-xs font-ui">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-3 rounded-lg font-ui font-bold text-base flex items-center justify-center gap-2 text-white bg-primary transition-opacity disabled:opacity-60"
+          >
+            {submitting ? 'Signing in…' : 'Sign In'} <ChevronRight className="w-4 h-4" />
+          </button>
+        </form>
 
         {/* Alert subscriber entry point */}
         <button

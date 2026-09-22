@@ -72,3 +72,17 @@ def find_subscriber_by_phone(phone: str):
     with SessionLocal() as session:
         row = session.get(SubscriberModel, phone_key)
         return _to_dict(row) if row else None
+
+
+def list_subscribers(area: str | None = None, category: str | None = None):
+    with SessionLocal() as session:
+        query = session.query(SubscriberModel)
+
+        if area:
+            query = query.filter(SubscriberModel.area == area)
+
+        if category:
+            query = query.filter(SubscriberModel.category == category)
+
+        rows = query.order_by(SubscriberModel.updated_at.desc()).all()
+        return [_to_dict(row) for row in rows]
