@@ -59,7 +59,7 @@ export default function BlockPage() {
 
   const monthsToCritical = (() => {
     if (!data) return null
-    const change = data.stress_clock.estimated_change
+    const change = data.stress_clock.outlook.estimated_change
     if (change >= 0) return null
     const current = Math.abs(data.current_status.groundwater)
     const criticalDepth = 30
@@ -67,11 +67,12 @@ export default function BlockPage() {
     return Math.round(Math.min(Math.abs((criticalDepth - current) / change), 24))
   })()
 
-  const trendLabel = data?.stress_clock.status === 'declining'
-    ? { symbol: 'TRIANGLE-DOWN', display: '▼ Declining', cls: 'text-risk-high' }
-    : data?.stress_clock.status === 'improving'
-    ? { symbol: 'TRIANGLE-UP',   display: '▲ Improving', cls: 'text-success' }
-    : { symbol: 'DASH',          display: '— Stable',    cls: 'text-text-secondary' }
+  const recentTrend = data?.stress_clock.recent_trend
+  const trendLabel = recentTrend?.status === 'declining'
+    ? { display: '▼ Declining', cls: 'text-risk-high' }
+    : recentTrend?.status === 'improving'
+    ? { display: '▲ Improving', cls: 'text-success' }
+    : { display: '— Stable',    cls: 'text-text-secondary' }
 
   const subScreens = [
     { to: 'forecast',     icon: BarChart2,  label: 'Full Forecast',  accent: 'text-accent'    },
@@ -88,19 +89,27 @@ export default function BlockPage() {
       <Nav />
       <div className="pt-20 px-4 md:px-6 pb-8 max-w-5xl mx-auto">
 
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate(-1)} className="text-text-secondary hover:text-text-primary transition-colors p-2 -ml-2">
+        <div className="flex items-start gap-3 mb-6">
+          <button onClick={() => navigate(-1)} className="text-text-secondary hover:text-text-primary transition-colors p-2 -ml-2 mt-0.5">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-bold text-text-primary font-ui tracking-tight">{stationName}</h1>
               {data && <RiskBadge level={data.risk.risk_level} />}
-              {data?.stress_clock.status === 'improving' && (
-                <span className="text-xs text-success font-semibold">This station improved since last month.</span>
+              {recentTrend?.status === 'improving' && (
+                <span className="text-xs text-success font-semibold">▲ Improved last month</span>
+              )}
+              {recentTrend?.status === 'declining' && (
+                <span className="text-xs text-risk-high font-semibold">▼ Declined last month</span>
               )}
             </div>
             {data && <p className="text-text-secondary text-sm mt-0.5">Block Intelligence · Data as of {data.station.latest_month}</p>}
+            {data && data.risk.risk_level !== 'LOW' && recentTrend?.status === 'improving' && (
+              <p className="text-text-muted text-xs mt-1 max-w-lg leading-relaxed">
+                These aren't contradictory: the <strong className="text-text-secondary">{data.risk.risk_level}</strong> badge reflects how deep the water table currently is; "Improved" only means it moved in the right direction last month. A station can be dangerously deep and still improving.
+              </p>
+            )}
           </div>
         </div>
 
@@ -140,10 +149,12 @@ export default function BlockPage() {
                   </div>
                   <StatCard label="Rainfall" value={(data.current_status.rainfall_mm?.toFixed(0) ?? '—') + ' mm'} sub="current month" />
                   <div className="gw-card">
-                    <div className="gw-section-label mb-1">Trend</div>
+                    <div className="gw-section-label mb-1">Trend (last month)</div>
                     <div className={"text-lg font-mono font-bold mt-1 " + trendLabel.cls}>{trendLabel.display}</div>
-                    <div className="text-text-primary0 text-xs mt-1 font-mono">
-                      {data.current_status.monthly_change >= 0 ? '+' : ''}{data.current_status.monthly_change.toFixed(2)} m/mo
+                    <div className="text-text-primary0 text-xs mt-1">
+                      {recentTrend && recentTrend.status !== 'stable'
+                        ? `${recentTrend.magnitude_m.toFixed(2)} m ${recentTrend.status === 'declining' ? 'deeper' : 'shallower'}`
+                        : 'no significant change'}
                     </div>
                   </div>
                   <StatCard label="Risk Score" value={data.risk.risk_score + '/100'} sub={'Weight: ' + data.risk.prediction_weight} />

@@ -195,3 +195,26 @@ body {
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 .critical-pulse-ring { animation: critical-pulse 2s infinite; }
+
+/* Water table ripple (Digital Twin) */
+@keyframes gw-water-wave {
+  100% { background-position-x: 40px; }
+}
+.gw-water-wave {
+  background-image: repeating-linear-gradient(
+    115deg,
+    color-mix(in srgb, currentColor 55%, transparent) 0px,
+    color-mix(in srgb, currentColor 55%, transparent) 2px,
+    transparent 2px,
+    transparent 10px
+  );
+  animation: gw-water-wave 1.4s linear infinite;
+}
+
+/* Infiltration arrows (Digital Twin) */
+@keyframes gw-infiltrate {
+  0%   { transform: translateY(-2px); opacity: 0.25; }
+  50%  { transform: translateY(2px);  opacity: 0.9; }
+  100% { transform: translateY(-2px); opacity: 0.25; }
+}
+.gw-infiltrate { animation: gw-infiltrate 1.8s ease-in-out infinite; }

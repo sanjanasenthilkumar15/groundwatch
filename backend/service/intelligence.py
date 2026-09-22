@@ -78,7 +78,8 @@ def generate_intelligence(station_name: str) -> dict:
 
     stress_clock = calculate_stress_clock(
         current_groundwater=data["current_groundwater"],
-        predicted_groundwater=predicted_groundwater
+        predicted_groundwater=predicted_groundwater,
+        gw_change_1m=data["gw_change_1m"]
     )
 
     # --------------------------------------------------

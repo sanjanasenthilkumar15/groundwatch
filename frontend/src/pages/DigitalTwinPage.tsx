@@ -1,10 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Layers } from 'lucide-react'
+import { ArrowLeft, Layers, Play, RotateCcw } from 'lucide-react'
 import Nav from '../components/Nav'
 import RiskBadge from '../components/RiskBadge'
 import { api, IntelligenceResponse } from '../lib/api'
-import { fmtGW } from '../lib/utils'
+
+const MAX_DEPTH = 60 // meters — Salem basin visualization estimate, not an engineering survey
+const ANIMATION_MS = 2400
+
+// easeInOutQuad
+function ease(t: number) {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+}
+
+/** Drives progress 0→1 over ANIMATION_MS on play(); value at any point is a
+ *  linear interpolation between `from` and `to` — a visualization aid, not a
+ *  separate model prediction. */
+function useTimelapse(from: number, to: number) {
+  const [progress, setProgress] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const rafRef = useRef<number | null>(null)
+
+  const play = () => {
+    if (playing) return
+    setPlaying(true)
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min((now - start) / ANIMATION_MS, 1)
+      setProgress(ease(t))
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(step)
+      } else {
+        setPlaying(false)
+      }
+    }
+    rafRef.current = requestAnimationFrame(step)
+  }
+
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }, [])
+
+  return { value: from + (to - from) * progress, progress, playing, play }
+}
 
 export default function DigitalTwinPage() {
   const { station } = useParams<{ station: string }>()
@@ -19,13 +55,27 @@ export default function DigitalTwinPage() {
   }, [stationName])
 
   const current  = data ? Math.abs(data.current_status.groundwater) : 0
-  const forecast = data?.forecast?.forecasts?.[0] ? Math.abs(data.forecast.forecasts[0].predicted_groundwater) : current
-  const maxDepth = 60
-  const currentPct  = Math.min((current  / maxDepth) * 100, 100)
-  const forecastPct = Math.min((forecast / maxDepth) * 100, 100)
+  const forecast1m = data?.forecast?.forecasts?.find(f => f.horizon_months === 1)
+  const forecast = forecast1m ? Math.abs(forecast1m.predicted_groundwater) : current
+
+  const { value: liveDepth, progress, playing, play } = useTimelapse(current, forecast)
+
   const riskLevel = data?.risk.risk_level ?? 'LOW'
-  const fillCol = riskLevel === 'CRITICAL' ? 'var(--gw-critical-text)' : riskLevel === 'HIGH' ? 'var(--gw-high-text)' : riskLevel === 'MODERATE' ? 'var(--gw-moderate-text)' : 'var(--gw-low-text)'
-  const fillBg  = riskLevel === 'CRITICAL' ? 'var(--gw-critical-surface)' : riskLevel === 'HIGH' ? 'var(--gw-high-surface)' : riskLevel === 'MODERATE' ? 'var(--gw-moderate-surface)' : 'var(--gw-low-surface)'
+  const fillCol = riskLevel === 'CRITICAL' ? 'var(--color-risk-critical)' : riskLevel === 'HIGH' ? 'var(--color-risk-high)' : riskLevel === 'MODERATE' ? 'var(--color-risk-watch)' : 'var(--color-risk-normal)'
+  const fillBg  = `color-mix(in srgb, ${fillCol} 20%, var(--color-surface-card))`
+  const dryBg   = 'color-mix(in srgb, var(--color-text-primary) 6%, var(--color-surface-page))'
+
+  // Auto-fit the vertical scale to this station's own range so a shallow water
+  // table (a few meters down) is just as visually legible as a deep one — a
+  // fixed district-wide depth scale would crush small stations into a sliver.
+  const visualMax = Math.max(current, forecast, 3) * 1.5
+  const pct = (m: number) => Math.min((m / visualMax) * 100, 100)
+  const currentPct  = pct(current)
+  const forecastPct = pct(forecast)
+  const livePct     = pct(liveDepth)
+
+  const playLabel = playing ? 'Playing…' : progress >= 1 ? 'Replay Forecast' : 'Play Forecast'
+  const PlayIcon  = progress >= 1 && !playing ? RotateCcw : Play
 
   return (
     <div className="min-h-screen bg-surface-page">
@@ -37,7 +87,8 @@ export default function DigitalTwinPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold text-text-primary font-ui tracking-tight">{stationName}</h1>
-            <p className="text-text-secondary text-sm flex items-center gap-1.5"><Layers className="w-4 h-4" /> Digital Twin — Aquifer Cross-Section</p>
+            <p className="text-text-secondary text-sm flex items-center gap-1.5"><Layers className="w-4 h-4" /> Digital Twin — Animated Aquifer Forecast</p>
+            <p className="text-text-muted text-xs mt-0.5">Observed → Predicted groundwater state</p>
           </div>
         </div>
 
@@ -47,82 +98,95 @@ export default function DigitalTwinPage() {
           <div className="space-y-5">
             <div className="flex items-center gap-3">
               <RiskBadge level={riskLevel} />
-              <span className="text-text-secondary text-sm">1-month forecast comparison</span>
+              <span className="text-text-secondary text-sm">1-month forecast time-lapse</span>
             </div>
 
             {/* Aquifer cross-section */}
             <div className="gw-card">
-              <div className="gw-section-label mb-5">Aquifer Cross-Section — Depth Model</div>
-              <div className="grid grid-cols-2 gap-6">
-
-                {/* Current */}
-                <div>
-                  <div className="gw-section-label mb-3 text-text-secondary">Current</div>
-                  <div className="relative mx-auto" style={{ width: '80px', height: '240px' }}>
-                    {/* Ground surface */}
-                    <div className="absolute top-0 left-0 right-0 h-4 rounded-t-sm" style={{ background: 'var(--gw-secondary-600)', opacity: 0.6 }}/>
-                    <div className="text-[9px] text-text-primary0 absolute -top-4 left-0 right-0 text-center uppercase tracking-wider">Ground</div>
-                    {/* Aquifer column */}
-                    <div className="absolute top-4 left-0 right-0 bottom-0 rounded-b-sm border border-border-ui overflow-hidden" style={{ background: 'var(--gw-surface-sunken)' }}>
-                      {/* Water fill from bottom */}
-                      <div className="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out"
-                        style={{ height: String(100 - currentPct) + '%', background: fillBg, borderTop: '1px solid ' + fillCol }}>
-                        {/* Water surface ripple */}
-                        <div className="absolute top-0 left-0 right-0 h-1 opacity-60" style={{ background: fillCol }} />
-                      </div>
-                      {/* Depth marker */}
-                      <div className="absolute right-1 transition-all duration-700 ease-out text-[9px] font-mono font-bold"
-                        style={{ top: String(currentPct) + '%', color: fillCol, transform: 'translateY(-50%)' }}>
-                        {current.toFixed(1)}m
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-center mt-3">
-                    <div className="text-xl font-mono font-bold text-text-primary">{fmtGW(data.current_status.groundwater)}</div>
-                    <div className="text-text-primary0 text-xs">below surface</div>
-                  </div>
-                </div>
-
-                {/* 1-Month Forecast */}
-                <div>
-                  <div className="gw-section-label mb-3 text-text-secondary">Next Month</div>
-                  <div className="relative mx-auto" style={{ width: '80px', height: '240px' }}>
-                    <div className="absolute top-0 left-0 right-0 h-4 rounded-t-sm" style={{ background: 'var(--gw-secondary-600)', opacity: 0.6 }}/>
-                    <div className="text-[9px] text-text-primary0 absolute -top-4 left-0 right-0 text-center uppercase tracking-wider">Ground</div>
-                    <div className="absolute top-4 left-0 right-0 bottom-0 rounded-b-sm border border-border-ui overflow-hidden border-dashed" style={{ background: 'var(--gw-surface-sunken)' }}>
-                      <div className="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out"
-                        style={{ height: String(100 - forecastPct) + '%', background: fillBg, opacity: 0.7, borderTop: '1px dashed ' + fillCol }}>
-                        <div className="absolute top-0 left-0 right-0 h-1 opacity-40" style={{ background: fillCol }} />
-                      </div>
-                      <div className="absolute right-1 transition-all duration-700 ease-out text-[9px] font-mono font-bold"
-                        style={{ top: String(forecastPct) + '%', color: fillCol, transform: 'translateY(-50%)', opacity: 0.8 }}>
-                        {forecast.toFixed(1)}m
-                      </div>
-                    </div>
-                    {/* Forecast label */}
-                    <div className="absolute -bottom-1 left-0 right-0 text-center">
-                      <span className="text-[9px] text-text-primary0 uppercase tracking-wider">Predicted</span>
-                    </div>
-                  </div>
-                  <div className="text-center mt-3">
-                    <div className="text-xl font-mono font-bold text-text-primary">{fmtGW(data.forecast?.forecasts?.[0]?.predicted_groundwater ?? null)}</div>
-                    <div className="text-text-primary0 text-xs">forecast depth</div>
-                  </div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="gw-section-label">Groundwater Forecast — Time-lapse</div>
+                <div className="text-right">
+                  <div className="font-mono font-bold text-2xl text-text-primary leading-none">{liveDepth.toFixed(1)}m</div>
+                  <div className="text-[10px] text-text-muted mt-0.5">below surface{playing || progress > 0 ? ' · interpolated' : ''}</div>
                 </div>
               </div>
 
+              <div className="relative mx-auto rounded-md border border-border-ui overflow-hidden" style={{ height: '280px' }}>
+                {/* Ground surface */}
+                <div className="absolute top-0 left-0 right-0 h-2 z-20" style={{ background: 'var(--color-secondary)' }} />
+                <div className="absolute top-2 left-0 right-0 text-center text-[9px] font-bold tracking-widest text-text-secondary uppercase z-20 py-0.5"
+                     style={{ background: 'var(--color-surface-card)' }}>
+                  Ground Surface  🌱 · 🌱 · 🌱
+                </div>
+
+                {/* Soil layer (decorative band) */}
+                <div className="absolute left-0 right-0 flex items-center justify-center gap-6 z-10"
+                     style={{ top: '2.5rem', height: '12%', background: 'color-mix(in srgb, var(--color-secondary) 22%, var(--color-surface-page))' }}>
+                  <span className="text-[8px] font-bold tracking-widest text-text-secondary uppercase absolute top-1 left-1/2 -translate-x-1/2">Soil Layer</span>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} className="gw-infiltrate text-text-secondary text-xs" style={{ animationDelay: `${i * 0.3}s` }}>↓</span>
+                  ))}
+                </div>
+
+                {/* Aquifer zone — unsaturated (dry) above the water table */}
+                <div className="absolute left-0 right-0 bottom-0" style={{ top: '4.5rem' }}>
+                  <div className="absolute inset-0" style={{ background: dryBg }} />
+
+                  {/* Saturated aquifer (below live water table) */}
+                  <div className="absolute left-0 right-0 bottom-0 transition-none flex items-start justify-center pt-3"
+                       style={{ top: `${livePct}%`, background: fillBg }}>
+                    <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: fillCol }}>Aquifer</span>
+                  </div>
+
+                  {/* Live animated water table line */}
+                  <div className="absolute left-0 right-0 h-1.5 gw-water-wave z-10" style={{ top: `${livePct}%`, color: fillCol }} />
+                  <div className="absolute right-2 text-[9px] font-mono font-bold z-10" style={{ top: `${livePct}%`, color: fillCol, transform: 'translateY(-100%)' }}>
+                    {liveDepth.toFixed(1)}m
+                  </div>
+
+                  {/* Static reference guides: current + forecast */}
+                  <div className="absolute left-0 right-0 border-t border-dashed opacity-50" style={{ top: `${currentPct}%`, borderColor: 'var(--color-text-muted)' }} />
+                  <div className="absolute left-2 text-[8px] font-mono text-text-muted opacity-70" style={{ top: `${currentPct}%`, transform: 'translateY(2px)' }}>NOW {current.toFixed(1)}m</div>
+
+                  <div className="absolute left-0 right-0 border-t border-dashed opacity-50" style={{ top: `${forecastPct}%`, borderColor: 'var(--color-text-muted)' }} />
+                  <div className="absolute left-2 text-[8px] font-mono text-text-muted opacity-70" style={{ top: `${forecastPct}%`, transform: 'translateY(2px)' }}>+1M {forecast.toFixed(1)}m</div>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="mt-5">
+                <div className="relative h-1.5 rounded-full bg-surface-page border border-border-ui">
+                  <div className="absolute top-0 left-0 h-full rounded-full transition-none" style={{ width: `${progress * 100}%`, background: fillCol }} />
+                  <div className="absolute top-1/2 w-3.5 h-3.5 rounded-full border-2 transition-none"
+                       style={{ left: `calc(${progress * 100}% - 7px)`, top: '50%', transform: 'translateY(-50%)', background: 'var(--color-surface-card)', borderColor: fillCol }} />
+                </div>
+                <div className="flex justify-between mt-2 text-xs font-mono text-text-secondary">
+                  <div><div className="font-bold text-text-primary">{current.toFixed(1)} m</div>NOW</div>
+                  <div className="text-right"><div className="font-bold text-text-primary">{forecast.toFixed(1)} m</div>+1 MONTH</div>
+                </div>
+              </div>
+
+              <button
+                onClick={play}
+                disabled={playing}
+                className="gw-btn w-full justify-center mt-4 flex items-center gap-2 disabled:opacity-60"
+              >
+                <PlayIcon className="w-4 h-4" />
+                {playLabel}
+              </button>
+
               {/* Legend */}
-              <div className="mt-6 pt-4 border-t border-border-ui flex gap-6 justify-center text-xs text-text-secondary">
-                <div className="flex items-center gap-2"><div className="w-4 h-0.5" style={{ background: fillCol }}></div>Current water table</div>
-                <div className="flex items-center gap-2"><div className="w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: fillCol }}></div>Forecast water table</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--gw-secondary-600)', opacity:0.6 }}></div>Soil layer</div>
+              <div className="mt-5 pt-4 border-t border-border-ui flex flex-wrap gap-4 justify-center text-xs text-text-secondary">
+                <div className="flex items-center gap-2"><div className="w-4 h-1.5 rounded-sm gw-water-wave" style={{ color: fillCol }}></div>Water table (live)</div>
+                <div className="flex items-center gap-2"><div className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: 'var(--color-text-muted)' }}></div>Observed / forecast reference</div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{ background: 'var(--color-secondary)', opacity: 0.5 }}></div>Soil layer</div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="gw-card">
                 <div className="gw-section-label mb-1">Aquifer depth modelled</div>
-                <div className="text-lg font-mono font-bold text-text-primary mt-1">{maxDepth} m</div>
+                <div className="text-lg font-mono font-bold text-text-primary mt-1">{MAX_DEPTH} m</div>
                 <div className="text-text-primary0 text-xs mt-1">Salem basin estimate</div>
               </div>
               <div className="gw-card">
@@ -134,7 +198,9 @@ export default function DigitalTwinPage() {
               </div>
             </div>
 
-            <p className="text-center text-xs text-text-muted">Aquifer cross-section is a scaled representation for visualization. Not an engineering survey.</p>
+            <p className="text-center text-xs text-text-muted">
+              This is an ML-driven groundwater state visualization — the water table position is interpolated between the observed depth and the XGBoost 1-month forecast. The vertical scale auto-fits to this station's own range so small movements stay visible. It is a scaled representation, not a hydraulic flow simulation or engineering survey.
+            </p>
           </div>
         ) : null}
       </div>

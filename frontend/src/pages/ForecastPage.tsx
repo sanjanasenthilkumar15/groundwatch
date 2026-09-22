@@ -131,7 +131,7 @@ export default function ForecastPage() {
 
   const forecasts = data?.forecast?.forecasts ?? []
   const f1 = forecasts.find(f => f.horizon_months === 1)
-  const trend = data?.stress_clock?.status
+  const trend = data?.stress_clock?.outlook?.status
   const TrendIcon = trend === 'declining' ? TrendingDown : trend === 'improving' ? TrendingUp : Minus
   const trendCls  = trend === 'declining' ? 'text-risk-high' : trend === 'improving' ? 'text-success' : 'text-text-secondary'
 
@@ -160,9 +160,10 @@ export default function ForecastPage() {
                 {f1 && <div className="text-text-primary0 text-xs mt-1 font-mono">Range: {Math.abs(f1.lower_bound).toFixed(1)}–{Math.abs(f1.upper_bound).toFixed(1)} m</div>}
               </div>
               <div className="gw-card flex flex-col justify-between">
-                <div className="gw-section-label mb-1">Trend</div>
+                <div className="gw-section-label mb-1">Forecast Trend</div>
                 <TrendIcon className={"w-8 h-8 " + trendCls} />
                 <div className={"text-sm font-semibold " + trendCls + " capitalize"}>{trend ?? '—'}</div>
+                <div className="text-text-muted text-[10px] mt-1">vs. current depth — not last month's actual change</div>
               </div>
             </div>
 
