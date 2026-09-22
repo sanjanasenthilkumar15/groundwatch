@@ -11,7 +11,7 @@ const SCENARIOS = [
   { id: 'above_normal', label: 'Above Normal',  ta: 'சாதாரணத்திற்கும் அதிகம்',desc: '> 125% of average',  icon: TrendingUp,  cls: 'text-success',     chipActive: 'gw-chip gw-chip-active-low' },
 ]
 
-interface ScenarioResult { scenario: string; predicted_groundwater: number; risk_level: string; message: string }
+interface ScenarioResult { scenario: { risk_level: string, forecasts: { horizon_months: number, predicted_groundwater: number }[] } }
 
 export default function ScenarioPage() {
   const { station } = useParams<{ station: string }>()
@@ -43,7 +43,7 @@ export default function ScenarioPage() {
   }
 
   const baseline = data ? Math.abs(data.current_status.groundwater) : null
-  const scenarioVal = result ? Math.abs(result.predicted_groundwater) : null
+  const scenarioVal = result?.scenario?.forecasts?.find(f => f.horizon_months === 6) ? Math.abs(result.scenario.forecasts.find(f => f.horizon_months === 6)!.predicted_groundwater) : null
   const delta = (baseline && scenarioVal) ? (scenarioVal - baseline) : null
 
   return (
@@ -100,8 +100,8 @@ export default function ScenarioPage() {
                   {result && !running ? (
                     <>
                       <div className={"text-2xl font-mono font-bold mt-1 " +
-                        (result.risk_level === 'CRITICAL' ? 'text-risk-critical' : result.risk_level === 'HIGH' ? 'text-risk-high' : result.risk_level === 'MODERATE' ? 'text-risk-watch' : 'text-risk-normal')}>
-                        {fmtGW(result.predicted_groundwater)}
+                        (result.scenario.risk_level === 'CRITICAL' ? 'text-risk-critical' : result.scenario.risk_level === 'HIGH' ? 'text-risk-high' : result.scenario.risk_level === 'MODERATE' ? 'text-risk-watch' : 'text-risk-normal')}>
+                        {fmtGW(scenarioVal ?? 0)}
                       </div>
                       {delta !== null && (
                         <div className={"text-xs font-mono mt-1 " + (delta > 0 ? 'text-risk-high' : 'text-success')}>
@@ -119,9 +119,9 @@ export default function ScenarioPage() {
             {/* Result narrative */}
             {result && !running && (
               <div className={"gw-card border-l-2 " +
-                (result.risk_level === 'CRITICAL' ? 'border-l-risk-critical' : result.risk_level === 'HIGH' ? 'border-l-risk-high' : result.risk_level === 'MODERATE' ? 'border-l-risk-watch' : 'border-l-risk-normal')}>
+                (result.scenario.risk_level === 'CRITICAL' ? 'border-l-risk-critical' : result.scenario.risk_level === 'HIGH' ? 'border-l-risk-high' : result.scenario.risk_level === 'MODERATE' ? 'border-l-risk-watch' : 'border-l-risk-normal')}>
                 <div className="gw-section-label mb-2">Model Interpretation</div>
-                <p className="text-text-primary text-sm leading-relaxed">{result.message}</p>
+                <p className="text-text-primary text-sm leading-relaxed">{((active === 'below_normal') ? 'Reduced rainfall leads to significant aquifer stress. ' : (active === 'above_normal') ? 'Increased rainfall aids recovery. ' : 'Normal rainfall maintains baseline trends. ') + 'The 6-month projected depth is ' + Math.abs(result.scenario.forecasts.find(f => f.horizon_months === 6)?.predicted_groundwater || 0).toFixed(2) + 'm, resulting in a ' + result.scenario.risk_level + ' risk status.'}</p>
               </div>
             )}
 
@@ -139,6 +139,8 @@ export default function ScenarioPage() {
     </div>
   )
 }
+
+
 
 
 
