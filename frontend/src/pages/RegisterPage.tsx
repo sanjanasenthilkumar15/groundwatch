@@ -4,8 +4,8 @@ import { Droplets, ChevronRight, ArrowLeft, Sprout, HardHat, CheckCircle2 } from
 import { api, Subscriber } from '../lib/api'
 
 const CATEGORIES = [
-  { id: 'farmer' as const,      label: 'Farmer',       ta: 'விவசாயி',      icon: Sprout  },
-  { id: 'construction' as const, label: 'Construction', ta: 'கட்டுமானம்', icon: HardHat },
+  { id: 'farmer' as const,       label: 'Farmer',             ta: 'விவசாயி',            icon: Sprout  },
+  { id: 'construction' as const, label: 'Construction Worker', ta: 'கட்டுமான தொழிலாளி', icon: HardHat },
 ]
 
 export default function RegisterPage() {

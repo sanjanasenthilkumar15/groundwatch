@@ -96,12 +96,20 @@ export interface IntelligenceResponse {
     note: string
   }
   stress_clock: {
-    status: string
+    outlook: {
+      status: 'improving' | 'declining' | 'stable'
+      estimated_change: number
+      message: string
+    }
+    recent_trend: {
+      status: 'improving' | 'declining' | 'stable'
+      change_m: number
+      magnitude_m: number
+      message: string
+    }
     current_groundwater: number
     predicted_groundwater: number
-    estimated_change: number
     threshold_status: string
-    message: string
     note: string
   }
   advisory: {
@@ -130,19 +138,85 @@ export interface RegisterPayload {
   email?: string
 }
 
+export interface Officer {
+  id: number
+  username: string
+  display_name: string
+  role: 'district' | 'block' | 'agriculture' | 'admin'
+  assigned_block: string | null
+  created_at: string
+}
+
+export interface OfficerCreatePayload {
+  username: string
+  password: string
+  display_name: string
+  role: Officer['role']
+  assigned_block?: string | null
+}
+
+export interface ConstructionProject {
+  id: number
+  name: string
+  block: string
+  station: string
+  applicant_name: string
+  current_gw: number
+  forecast_gw: number
+  risk_level: string
+  confidence: number
+  contact_phone: string
+  contact_email: string | null
+  source: 'registration' | 'manual'
+}
+
+export interface ExtractionRequest {
+  id: number
+  applicant_name: string
+  block: string
+  purpose: string
+  required_quantity: string
+  existing_well: boolean
+  station: string
+  current_gw: number
+  forecast_gw: number
+  risk_level: string
+  confidence: number
+  contact_phone: string
+  contact_email: string | null
+}
+
+export interface ExtractionRequestCreatePayload {
+  applicant_name: string
+  purpose: string
+  required_quantity: string
+  existing_well: boolean
+  station: string
+  contact_phone: string
+  contact_email?: string
+}
+
 // ── API client ────────────────────────────────────────────────
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('gw_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function get<T>(path: string): Promise<T> {
-  const r = await fetch(`${BASE}${path}`)
-  if (!r.ok) throw new Error(`API error ${r.status}: ${path}`)
+  const r = await fetch(`${BASE}${path}`, { headers: authHeaders() })
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}))
+    throw new Error(err.detail || `API error ${r.status}: ${path}`)
+  }
   return r.json()
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
   const r = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    method,
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!r.ok) {
     const err = await r.json().catch(() => ({}))
@@ -150,6 +224,10 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   }
   return r.json()
 }
+
+const post = <T>(path: string, body: unknown) => send<T>('POST', path, body)
+const patch = <T>(path: string, body: unknown) => send<T>('PATCH', path, body)
+const del = <T>(path: string) => send<T>('DELETE', path)
 
 export const api = {
   // List all station names
@@ -169,6 +247,94 @@ export const api = {
   // Look up an existing alert registration by phone number
   login: (phone: string) =>
     post<{ status: string; subscriber: Subscriber }>('/login', { phone }),
+
+  // Admin — list registered alert subscribers, optionally filtered
+  listSubscribers: (params?: { area?: string; category?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.area) qs.set('area', params.area)
+    if (params?.category) qs.set('category', params.category)
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return get<{ status: string; subscribers: Subscriber[] }>(`/subscribers${suffix}`)
+  },
+
+  // Admin — trigger a demo SMS/email alert to all subscribers registered in a station's area
+  notifySubscribers: (station: string) =>
+    post<{
+      status: string
+      station: string
+      risk_level: string
+      notified_count: number
+      subscribers: Subscriber[]
+      message_preview: string
+      delivery: string
+    }>(`/stations/${encodeURIComponent(station)}/notify-subscribers`, {}),
+
+  // Distinct list of blocks/taluks that have at least one assigned station
+  blocks: () => get<{ status: string; blocks: string[] }>('/blocks'),
+
+  // Officer login — real credentials, role comes back from the server
+  officerLogin: (username: string, password: string) =>
+    post<{ status: string; token: string; officer: Officer }>('/officer/login', { username, password }),
+
+  // Validate/restore the current session from a stored token
+  officerMe: () => get<{ status: string; officer: Officer }>('/officer/me'),
+
+  // Admin — officer account management
+  listOfficers: () => get<{ status: string; officers: Officer[] }>('/officers'),
+
+  createOfficer: (payload: OfficerCreatePayload) =>
+    post<{ status: string; officer: Officer }>('/officers', payload),
+
+  updateOfficer: (id: number, payload: Partial<Pick<Officer, 'display_name' | 'role' | 'assigned_block'>>) =>
+    patch<{ status: string; officer: Officer }>(`/officers/${id}`, payload),
+
+  deleteOfficer: (id: number) => del<{ status: string }>(`/officers/${id}`),
+
+  // Admin — construction projects
+  listConstructionProjects: () => get<{ status: string; projects: ConstructionProject[] }>('/admin/construction-projects'),
+
+  getConstructionProject: (id: number) => get<{ status: string; project: ConstructionProject }>(`/admin/construction-projects/${id}`),
+
+  sendConstructionProjectSms: (id: number) =>
+    post<{ status: string; message_preview: string; delivery: string }>(`/admin/construction-projects/${id}/send-sms`, {}),
+
+  sendConstructionProjectEmail: (id: number) =>
+    post<{ status: string; subject: string; body: string; delivery: string }>(`/admin/construction-projects/${id}/send-email`, {}),
+
+  // Admin — extraction requests
+  listExtractionRequests: () => get<{ status: string; requests: ExtractionRequest[] }>('/admin/extraction-requests'),
+
+  getExtractionRequest: (id: number) => get<{ status: string; request: ExtractionRequest }>(`/admin/extraction-requests/${id}`),
+
+  createExtractionRequest: (payload: ExtractionRequestCreatePayload) =>
+    post<{ status: string; request: ExtractionRequest }>('/admin/extraction-requests', payload),
+
+  sendExtractionRequestAlert: (id: number) =>
+    post<{ status: string; message_preview: string; delivery: string }>(`/admin/extraction-requests/${id}/send-alert`, {}),
+
+  // Admin — farmer advisory by block
+  notifyFarmersInBlock: (block: string) =>
+    post<{
+      status: string
+      block: string
+      notified_count: number
+      subscribers: Subscriber[]
+      message_preview_english: string
+      message_preview_tamil: string
+      delivery: string
+    }>(`/admin/blocks/${encodeURIComponent(block)}/notify-farmers`, {}),
+
+  // Admin — construction worker advisory by block
+  notifyConstructionWorkersInBlock: (block: string) =>
+    post<{
+      status: string
+      block: string
+      notified_count: number
+      subscribers: Subscriber[]
+      message_preview_english: string
+      message_preview_tamil: string
+      delivery: string
+    }>(`/admin/blocks/${encodeURIComponent(block)}/notify-construction-workers`, {}),
 }
 
 
