@@ -6,6 +6,9 @@ __pycache__/
 .env
 .env.local
 
+# Local SQLite fallback DB (used only when DATABASE_URL isn't set) - contains user PII
+backend/data/app.db
+
 # IDE
 .vscode/
 .idea/

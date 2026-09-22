@@ -132,6 +132,14 @@ export default function LoginPage() {
           Enter Dashboard <ChevronRight className="w-4 h-4" />
         </button>
 
+        {/* Alert subscriber entry point */}
+        <button
+          onClick={() => navigate('/register')}
+          className="w-full text-center py-3 rounded-lg border border-border-ui text-text-secondary hover:text-text-primary hover:border-primary transition-colors text-sm font-ui font-semibold"
+        >
+          Farmer or Construction worker? Register for SMS &amp; Email alerts →
+        </button>
+
         <p className="text-center text-text-muted text-xs leading-relaxed">
           NWDP Survey Data · XGBoost + GEE Satellite Model<br />
           Tamil Nadu Groundwater Board

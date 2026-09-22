@@ -112,11 +112,42 @@ export interface IntelligenceResponse {
   }
 }
 
+export interface Subscriber {
+  name: string
+  phone: string
+  area: string
+  category: 'farmer' | 'construction'
+  email: string | null
+  registered_at: string
+  updated_at: string
+}
+
+export interface RegisterPayload {
+  name: string
+  phone: string
+  area: string
+  category: 'farmer' | 'construction'
+  email?: string
+}
+
 // ── API client ────────────────────────────────────────────────
 
 async function get<T>(path: string): Promise<T> {
   const r = await fetch(`${BASE}${path}`)
   if (!r.ok) throw new Error(`API error ${r.status}: ${path}`)
+  return r.json()
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const r = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}))
+    throw new Error(err.detail || `API error ${r.status}: ${path}`)
+  }
   return r.json()
 }
 
@@ -130,6 +161,14 @@ export const api = {
   // Block intelligence — complete data for one station
   intelligence: (station: string) =>
     get<IntelligenceResponse>(`/stations/${encodeURIComponent(station)}/intelligence`),
+
+  // Register for groundwater SMS/email alerts
+  register: (payload: RegisterPayload) =>
+    post<{ status: string; message: string; subscriber: Subscriber }>('/register', payload),
+
+  // Look up an existing alert registration by phone number
+  login: (phone: string) =>
+    post<{ status: string; subscriber: Subscriber }>('/login', { phone }),
 }
 
 

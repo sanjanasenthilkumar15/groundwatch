@@ -40,6 +40,11 @@ from backend.service.risk_map import (
     generate_risk_map
 )
 
+from backend.service.registry import (
+    register_subscriber,
+    find_subscriber_by_phone
+)
+
 
 # ==================================================
 # FASTAPI APPLICATION
@@ -94,6 +99,20 @@ class PredictionRequest(BaseModel):
     year: int
 
     current_groundwater: float
+
+
+class RegisterRequest(BaseModel):
+
+    name: str
+    phone: str
+    area: str
+    category: str  # "farmer" | "construction"
+    email: str | None = None
+
+
+class LoginRequest(BaseModel):
+
+    phone: str
 
 
 # ==================================================
@@ -560,6 +579,59 @@ def station_scenario(
             "risk_score": scenario_risk["risk_score"],
             "forecasts": scenario_forecast["forecasts"]
         }
+    }
+
+
+# ==================================================
+# ALERT SUBSCRIBER REGISTRATION
+# ==================================================
+
+@app.post("/register")
+def register_for_alerts(request: RegisterRequest):
+
+    if not request.name.strip():
+        raise HTTPException(status_code=400, detail="Name is required")
+
+    digits = "".join(ch for ch in request.phone if ch.isdigit())
+    if len(digits) < 10:
+        raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
+
+    if request.category not in ("farmer", "construction"):
+        raise HTTPException(status_code=400, detail="Category must be 'farmer' or 'construction'")
+
+    if request.area not in get_stations():
+        raise HTTPException(status_code=404, detail="Unknown area/station")
+
+    subscriber = register_subscriber(
+        name=request.name,
+        phone=request.phone,
+        area=request.area,
+        category=request.category,
+        email=request.email
+    )
+
+    return {
+        "status": "success",
+        "message": "Registered for groundwater alerts",
+        "subscriber": subscriber
+    }
+
+
+# ==================================================
+# ALERT SUBSCRIBER LOGIN
+# ==================================================
+
+@app.post("/login")
+def login_subscriber(request: LoginRequest):
+
+    subscriber = find_subscriber_by_phone(request.phone)
+
+    if subscriber is None:
+        raise HTTPException(status_code=404, detail="No registration found for this number")
+
+    return {
+        "status": "success",
+        "subscriber": subscriber
     }
 
 
