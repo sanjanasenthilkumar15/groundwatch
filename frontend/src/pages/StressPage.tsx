@@ -255,16 +255,13 @@ export default function StressPage() {
                 </div>
               </div>
 
-              <div className="gw-card">
+              <div className="gw-card col-span-2">
                 <div className="gw-section-label mb-2">Current Depth</div>
                 <div className="text-lg font-mono font-bold text-text-primary mt-1">{fmtGW(data.current_status.groundwater)}</div>
                 <div className="text-text-muted text-xs mt-1">below ground level</div>
               </div>
 
-              <div className="gw-card">
-                <div className="gw-section-label mb-2">Threshold Status</div>
-                <div className="text-sm font-semibold text-text-primary mt-1 capitalize">{sc.threshold_status}</div>
-              </div>
+              
             </div>
 
             {/* Message */}
@@ -289,3 +286,4 @@ export default function StressPage() {
     </div>
   )
 }
+
