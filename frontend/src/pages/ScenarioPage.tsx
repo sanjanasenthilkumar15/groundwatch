@@ -32,9 +32,9 @@ export default function ScenarioPage() {
     setActive(scenarioId)
     setRunning(true)
     try {
-      const r = await fetch('/api/stations/' + encodeURIComponent(stationName) + '/scenario', {
+      const r = await fetch((import.meta.env.VITE_API_URL ?? '/api') + '/stations/' + encodeURIComponent(stationName) + '/scenario', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario: scenarioId }),
+        body: JSON.stringify({ rainfall_modifier: scenarioId === 'below_normal' ? 0.75 : scenarioId === 'above_normal' ? 1.25 : 1.0 }),
       })
       const json = await r.json()
       setResult(json)
@@ -139,4 +139,6 @@ export default function ScenarioPage() {
     </div>
   )
 }
+
+
 
