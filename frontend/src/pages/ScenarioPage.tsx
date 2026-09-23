@@ -43,7 +43,12 @@ export default function ScenarioPage() {
   }
 
   const baseline = data ? Math.abs(data.current_status.groundwater) : null
-  const scenarioVal = result?.scenario?.forecasts?.find(f => f.horizon_months === 6) ? Math.abs(result.scenario.forecasts.find(f => f.horizon_months === 6)!.predicted_groundwater) : null
+  // Headline the 1-month forecast, not 6-month: the model's recursive
+  // multi-month forecast isn't reliably monotonic with the rainfall
+  // assumption (verified — a 3-month/6-month "Above Normal" run can come
+  // back deeper than "Normal" for some stations), while 1-month is the
+  // horizon that consistently responds in the right direction.
+  const scenarioVal = result?.scenario?.forecasts?.find(f => f.horizon_months === 1) ? Math.abs(result.scenario.forecasts.find(f => f.horizon_months === 1)!.predicted_groundwater) : null
   const delta = (baseline && scenarioVal) ? (scenarioVal - baseline) : null
 
   return (
@@ -121,15 +126,25 @@ export default function ScenarioPage() {
               <div className={"gw-card border-l-2 " +
                 (result.scenario.risk_level === 'CRITICAL' ? 'border-l-risk-critical' : result.scenario.risk_level === 'HIGH' ? 'border-l-risk-high' : result.scenario.risk_level === 'MODERATE' ? 'border-l-risk-watch' : 'border-l-risk-normal')}>
                 <div className="gw-section-label mb-2">Model Interpretation</div>
-                <p className="text-text-primary text-sm leading-relaxed">{((active === 'below_normal') ? 'Reduced rainfall leads to significant aquifer stress. ' : (active === 'above_normal') ? 'Increased rainfall aids recovery. ' : 'Normal rainfall maintains baseline trends. ') + 'The 6-month projected depth is ' + Math.abs(result.scenario.forecasts.find(f => f.horizon_months === 6)?.predicted_groundwater || 0).toFixed(2) + 'm, resulting in a ' + result.scenario.risk_level + ' risk status.'}</p>
+                <p className="text-text-primary text-sm leading-relaxed">
+                  {delta === null
+                    ? 'Model result unavailable for this scenario.'
+                    : delta > 0.05
+                      ? `Under this rainfall scenario, the model projects the water table ${delta.toFixed(2)}m deeper than the current baseline within a month. `
+                      : delta < -0.05
+                        ? `Under this rainfall scenario, the model projects the water table ${Math.abs(delta).toFixed(2)}m shallower than the current baseline within a month. `
+                        : 'Under this rainfall scenario, the model projects little change from the current baseline within a month. '}
+                  {delta !== null && `Resulting in a ${result.scenario.risk_level} risk status.`}
+                </p>
               </div>
             )}
 
             <div className="gw-card bg-surface-card border border-border-ui">
               <div className="gw-section-label mb-2">About this tool</div>
               <p className="text-text-secondary text-xs leading-relaxed">
-                The What-If Simulator adjusts the rainfall input to the XGBoost groundwater model and re-runs the prediction. 
-                All other features (NDVI, soil moisture, previous groundwater levels) remain at current observed values. 
+                The What-If Simulator adjusts the rainfall input (and its recent trend) to the XGBoost groundwater model and re-runs the prediction.
+                All other features (NDVI, soil moisture, previous groundwater levels) remain at current observed values.
+                The result shown is the 1-month projection — the model's longer-horizon (3/6-month) recursive forecasts don't respond as consistently to a rainfall assumption, so they're not used as the headline number here.
                 Results are directional — for planning purposes only, not engineering decisions.
               </p>
             </div>

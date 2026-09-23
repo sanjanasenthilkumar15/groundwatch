@@ -723,9 +723,14 @@ def station_scenario(
 
     scenario_data = baseline_data.copy()
 
-    scenario_data["rainfall_mm"] *= (
-        request.rainfall_modifier
-    )
+    # Scale every rainfall-derived feature together, not just the current
+    # month. The model leans heavily on the lagged/rolling rainfall trend
+    # (rain_lag_1-3, rain_rolling_3); scaling rainfall_mm alone barely moved
+    # the prediction since those trend features stayed at baseline - "Below
+    # Normal" and "Normal" came out nearly identical.
+    for field in ("rainfall_mm", "rain_lag_1", "rain_lag_2", "rain_lag_3", "rain_rolling_3"):
+        if scenario_data.get(field) is not None:
+            scenario_data[field] *= request.rainfall_modifier
 
     # ----------------------------------------------
     # Scenario prediction

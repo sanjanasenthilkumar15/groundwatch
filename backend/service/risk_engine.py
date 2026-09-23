@@ -118,6 +118,43 @@ def calculate_risk(
         risk_score += 10
 
     # --------------------------------------------------
+    # 4. ABSOLUTE DEPTH
+    #
+    # Trend/prediction/rainfall alone can rate a shallow
+    # station HIGH purely for one bad month, while a
+    # station stuck permanently deep scores LOW because
+    # it isn't currently getting worse. Depth on its own
+    # is a real risk factor regardless of trend.
+    #
+    # PLAUSIBLE_MAX_DEPTH_M guards against bad source data
+    # (at least one station's raw readings are ~400m+,
+    # implausible for this region and almost certainly a
+    # sensor/entry error) - a reading beyond it is treated
+    # as untrustworthy rather than "even more critical",
+    # so it doesn't get the depth-risk bump at all.
+    # --------------------------------------------------
+
+    PLAUSIBLE_MAX_DEPTH_M = 60
+
+    depth = abs(current_groundwater)
+
+    if depth > PLAUSIBLE_MAX_DEPTH_M:
+
+        pass  # untrustworthy reading - no depth-based risk contribution
+
+    elif depth >= 30:
+
+        risk_score += 70
+
+    elif depth >= 20:
+
+        risk_score += 50
+
+    elif depth >= 15:
+
+        risk_score += 15
+
+    # --------------------------------------------------
     # LIMIT SCORE TO 0–100
     # --------------------------------------------------
 

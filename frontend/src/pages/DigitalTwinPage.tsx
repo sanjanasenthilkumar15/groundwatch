@@ -101,6 +101,12 @@ export default function DigitalTwinPage() {
               <span className="text-text-secondary text-sm">1-month forecast time-lapse</span>
             </div>
 
+            {(riskLevel === 'HIGH' || riskLevel === 'CRITICAL') && forecast < current && (
+              <p className="text-text-muted text-xs -mt-2 leading-relaxed">
+                The water table is animated rising here because the model forecasts a rebound next month — that's a separate signal from the {riskLevel} badge, which reflects a real recent decline (or depth) driving the current risk score. Both can be true at once.
+              </p>
+            )}
+
             {/* Aquifer cross-section */}
             <div className="gw-card">
               <div className="flex items-center justify-between mb-4">
