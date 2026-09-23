@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import LandingPage from './landing/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import SubscriberAdvisoryPage from './pages/SubscriberAdvisoryPage'
 
 /* The officer console pulls in Leaflet, Recharts and every dashboard screen.
    None of that belongs in the first load of a public landing page, so the
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/advisory" element={<SubscriberAdvisoryPage />} />
 
               {/* Role landing pages */}
               <Route path="/dashboard"   element={<ProtectedRoute allow={['district']}><DashboardPage /></ProtectedRoute>} />

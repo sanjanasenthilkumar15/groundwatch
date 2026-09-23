@@ -56,7 +56,12 @@ export default function DigitalTwinPage() {
 
   const current  = data ? Math.abs(data.current_status.groundwater) : 0
   const forecast1m = data?.forecast?.forecasts?.find(f => f.horizon_months === 1)
-  const forecast = forecast1m ? Math.abs(forecast1m.predicted_groundwater) : current
+  const rawForecast = forecast1m ? Math.abs(forecast1m.predicted_groundwater) : current
+  // Cap unrealistic single-month swings to +-4 m (typical max aquifer recharge/draw rate)
+  const MAX_MONTHLY_CHANGE = 4
+  const clampedChange = Math.max(-MAX_MONTHLY_CHANGE, Math.min(MAX_MONTHLY_CHANGE, rawForecast - current))
+  const forecast = current + clampedChange
+  const isUnrealistic = Math.abs(rawForecast - current) > MAX_MONTHLY_CHANGE
 
   const { value: liveDepth, progress, playing, play } = useTimelapse(current, forecast)
 
@@ -101,6 +106,11 @@ export default function DigitalTwinPage() {
               <span className="text-text-secondary text-sm">1-month forecast time-lapse</span>
             </div>
 
+            {isUnrealistic && (
+              <p className="gw-card border-l-4 border-l-risk-watch text-text-secondary text-xs leading-relaxed">
+                ⚠️ The model's raw 1-month prediction ({rawForecast.toFixed(1)}m) differs from today by more than 4m, which is physically implausible for a single month. The animation is capped at ±4m to reflect realistic aquifer behaviour. This indicates high model uncertainty for this station — treat the direction (rising or falling), not the exact value, as the signal.
+              </p>
+            )}
             {(riskLevel === 'HIGH' || riskLevel === 'CRITICAL') && forecast < current && (
               <p className="text-text-muted text-xs -mt-2 leading-relaxed">
                 The water table is animated rising here because the model forecasts a rebound next month — that's a separate signal from the {riskLevel} badge, which reflects a real recent decline (or depth) driving the current risk score. Both can be true at once.
@@ -213,3 +223,5 @@ export default function DigitalTwinPage() {
     </div>
   )
 }
+
+

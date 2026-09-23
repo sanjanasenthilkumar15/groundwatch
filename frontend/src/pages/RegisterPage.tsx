@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Droplets, ChevronRight, ArrowLeft, Sprout, HardHat, CheckCircle2 } from 'lucide-react'
+import { Droplets, ChevronRight, ArrowLeft, Sprout, HardHat } from 'lucide-react'
 import { api, Subscriber } from '../lib/api'
 
 const CATEGORIES = [
@@ -23,7 +23,6 @@ export default function RegisterPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]     = useState<string | null>(null)
-  const [result, setResult]   = useState<Subscriber | null>(null)
 
   useEffect(() => {
     api.stations().then(d => {
@@ -32,16 +31,16 @@ export default function RegisterPage() {
     }).catch(() => {})
   }, [])
 
+  // Already logged in on this device — skip straight to the advisory page
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('gw_subscriber')
-      if (saved) setResult(JSON.parse(saved))
+      if (localStorage.getItem('gw_subscriber')) navigate('/my-advisory', { replace: true })
     } catch {}
-  }, [])
+  }, [navigate])
 
   const saveSubscriber = (s: Subscriber) => {
-    setResult(s)
     try { localStorage.setItem('gw_subscriber', JSON.stringify(s)) } catch {}
+    navigate('/my-advisory')
   }
 
   const submitRegister = async () => {
@@ -76,13 +75,6 @@ export default function RegisterPage() {
     }
   }
 
-  const reset = () => {
-    setResult(null)
-    setError(null)
-    setName(''); setPhone(''); setEmail(''); setLoginPhone('')
-    try { localStorage.removeItem('gw_subscriber') } catch {}
-  }
-
   return (
     <div className="min-h-screen bg-surface-page flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm space-y-6">
@@ -106,32 +98,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {result ? (
-          /* ── Confirmation ── */
-          <div className="gw-card text-center space-y-4">
-            <CheckCircle2 className="w-10 h-10 text-primary mx-auto" />
-            <div>
-              <div className="font-bold font-ui text-text-primary text-lg">You're registered</div>
-              <p className="font-tamil text-text-muted text-sm mt-1">நீங்கள் பதிவு செய்யப்பட்டுள்ளீர்கள்</p>
-            </div>
-            <div className="text-left space-y-2 pt-2 border-t border-border-ui">
-              <div className="flex justify-between text-sm"><span className="text-text-secondary">Name</span><span className="text-text-primary font-semibold">{result.name}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-text-secondary">Mobile</span><span className="text-text-primary font-mono">{result.phone}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-text-secondary">Area</span><span className="text-text-primary font-semibold">{result.area}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-text-secondary">Category</span><span className="text-text-primary font-semibold capitalize">{result.category}</span></div>
-              {result.email && (
-                <div className="flex justify-between text-sm"><span className="text-text-secondary">Email</span><span className="text-text-primary">{result.email}</span></div>
-              )}
-            </div>
-            <p className="text-text-muted text-xs leading-relaxed pt-2">
-              You'll receive an SMS and email alert when groundwater in {result.area} reaches a CRITICAL level.
-            </p>
-            <button onClick={reset} className="w-full py-2.5 rounded-lg font-ui font-semibold text-sm border border-border-ui text-text-secondary hover:text-text-primary transition-colors">
-              Register a different number
-            </button>
-          </div>
-        ) : (
-          <>
+        <>
             {/* Mode toggle */}
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -272,7 +239,6 @@ export default function RegisterPage() {
               Free SMS &amp; email alerts when groundwater turns critical in your area.
             </p>
           </>
-        )}
       </div>
     </div>
   )
