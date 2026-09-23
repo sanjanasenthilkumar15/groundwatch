@@ -1,0 +1,701 @@
+/* ==========================================================================
+   GroundWatch — public landing page
+   Every rule is scoped under .gwl so the authenticated app's light/dark
+   theme tokens (index.css) are completely untouched.
+
+   THEME
+   Light is the default palette (on bare .gwl) — a considered light theme
+   in its own right (soft off-white ground, deepened accents for contrast),
+   not an inverted dark theme. Dark overrides live on .gwl[data-theme="dark"].
+   The attribute is stamped on this div by LandingPage, driven by
+   theme.tsx's LandingThemeProvider — never on <html>, so it can't collide
+   with the authenticated app's own ThemeContext.
+   ========================================================================== */
+
+.gwl {
+  /* surfaces */
+  --bg:          #F6F9F8;
+  --bg-raise:    #EEF4F1;
+  --panel:       rgba(11, 46, 45, 0.035);
+  --panel-2:     rgba(11, 46, 45, 0.06);
+  --solid:       #FFFFFF;
+  --glass-a:     rgba(11, 46, 45, 0.05);
+  --glass-b:     rgba(11, 46, 45, 0.015);
+  --inset-bg:    rgba(11, 46, 45, 0.04);
+
+  /* hairlines */
+  --line:        rgba(11, 46, 45, 0.11);
+  --line-soft:   rgba(11, 46, 45, 0.065);
+  --line-strong: rgba(11, 46, 45, 0.24);
+
+  /* ink */
+  --ink:         #0C2321;
+  --ink-2:       #43605B;
+  --ink-3:       #7E938E;
+
+  /* signal — deepened from the dark-mode hues for AA contrast on a light
+     ground, same brand hue family */
+  --aqua:        #0E9C89;
+  --cyan:        #1678A8;
+  --deep:        #0B4D63;
+
+  /* operational risk bands (mirrors backend/service/risk_engine.py),
+     deepened for contrast on light surfaces */
+  --low:         #1E8E48;
+  --moderate:    #B8790A;
+  --high:        #C05A1D;
+  --critical:    #C4291F;
+
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv05' 1, 'ss01' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+  isolation: isolate;
+  transition: background-color 0.4s var(--ease);
+}
+
+.gwl[data-theme="dark"] {
+  --bg:          #04070A;
+  --bg-raise:    #070C12;
+  --panel:       rgba(160, 196, 212, 0.035);
+  --panel-2:     rgba(160, 196, 212, 0.055);
+  --solid:       #0A1017;
+  --glass-a:     rgba(160, 196, 212, 0.05);
+  --glass-b:     rgba(160, 196, 212, 0.015);
+  --inset-bg:    rgba(2, 5, 8, 0.5);
+
+  --line:        rgba(150, 186, 204, 0.13);
+  --line-soft:   rgba(150, 186, 204, 0.07);
+  --line-strong: rgba(150, 186, 204, 0.26);
+
+  --ink:         #EAF1F5;
+  --ink-2:       #9FB2BE;
+  --ink-3:       #63757F;
+
+  --aqua:        #3FC9AF;
+  --cyan:        #38B2E8;
+  --deep:        #15607C;
+
+  --low:         #38B05A;
+  --moderate:    #F2B01C;
+  --high:        #EE7B33;
+  --critical:    #E4483E;
+}
+
+.gwl ::selection { background: color-mix(in srgb, var(--aqua) 28%, transparent); color: #fff; }
+
+/* --------------------------------------------------------------------------
+   A permanently-dark subtree, for the closing CTA and footer. These read as
+   a deliberate cinematic close regardless of the page's light/dark toggle
+   (the same pattern Stripe/Linear use for a dark final section on an
+   otherwise light page) — done by re-pinning the shared tokens locally so
+   every existing .gwl-* utility inside just works, unchanged.
+   -------------------------------------------------------------------------- */
+.gwl-cta-dark {
+  --bg:          #030609;
+  --bg-raise:    #030609;
+  --panel:       rgba(180, 210, 205, 0.05);
+  --panel-2:     rgba(180, 210, 205, 0.08);
+  --glass-a:     rgba(180, 210, 205, 0.05);
+  --glass-b:     rgba(180, 210, 205, 0.015);
+  --line:        rgba(180, 210, 205, 0.16);
+  --line-soft:   rgba(180, 210, 205, 0.09);
+  --line-strong: rgba(180, 210, 205, 0.3);
+  --ink:         #F2F6F5;
+  --ink-2:       #A9C0BC;
+  --ink-3:       #6F8B86;
+  --aqua:        #3FC9AF;
+  --cyan:        #38B2E8;
+  color: var(--ink);
+}
+
+.gwl :focus-visible {
+  outline: 2px solid var(--aqua);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* --------------------------------------------------------------------------
+   LAYOUT
+   -------------------------------------------------------------------------- */
+.gwl-wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+@media (min-width: 768px)  { .gwl-wrap { padding-inline: 32px; } }
+@media (min-width: 1440px) { .gwl-wrap { max-width: 1280px; padding-inline: 40px; } }
+
+.gwl-sec { position: relative; padding-block: 88px; }
+@media (min-width: 768px)  { .gwl-sec { padding-block: 130px; } }
+@media (min-width: 1280px) { .gwl-sec { padding-block: 156px; } }
+
+.gwl-sec--tight { padding-block: 64px; }
+@media (min-width: 768px) { .gwl-sec--tight { padding-block: 96px; } }
+
+/* seam between sections */
+.gwl-seam { height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+
+/* anchored sections must clear the fixed navbar when jumped to */
+.gwl section[id],
+.gwl div[id] { scroll-margin-top: 78px; }
+
+/* --------------------------------------------------------------------------
+   TYPE
+   -------------------------------------------------------------------------- */
+.gwl-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.gwl-eyebrow::before {
+  content: '';
+  width: 18px; height: 1px;
+  background: var(--aqua);
+  opacity: 0.75;
+  flex: none;
+}
+
+.gwl-h1 {
+  font-size: clamp(2.5rem, 7.2vw, 5.1rem);
+  line-height: 0.98;
+  letter-spacing: -0.038em;
+  font-weight: 600;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.gwl-h2 {
+  font-size: clamp(1.85rem, 4.4vw, 3.25rem);
+  line-height: 1.04;
+  letter-spacing: -0.032em;
+  font-weight: 600;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.gwl-h3 {
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  line-height: 1.18;
+  letter-spacing: -0.022em;
+  font-weight: 600;
+  color: var(--ink);
+}
+.gwl-lead {
+  font-size: clamp(0.98rem, 1.35vw, 1.16rem);
+  line-height: 1.6;
+  color: var(--ink-2);
+  letter-spacing: -0.008em;
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+.gwl-body { font-size: 0.9rem; line-height: 1.62; color: var(--ink-2); text-wrap: pretty; }
+.gwl-dim  { color: var(--ink-3); }
+
+.gwl-mono {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.gwl-num { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+
+/* gradient ink used once or twice, never as decoration */
+.gwl-ink-water {
+  background: linear-gradient(96deg, var(--aqua) 0%, var(--cyan) 62%, #6FA8C9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   SURFACES
+   -------------------------------------------------------------------------- */
+.gwl-card {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition: border-color 0.4s var(--ease), background 0.4s var(--ease), transform 0.4s var(--ease);
+}
+.gwl-card--hover:hover {
+  border-color: var(--line-strong);
+  background: var(--panel-2);
+}
+
+.gwl-panel {
+  background: linear-gradient(180deg, var(--glass-a), var(--glass-b));
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.gwl-inset {
+  background: var(--inset-bg);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+}
+
+.gwl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.gwl-note {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+
+/* --------------------------------------------------------------------------
+   BUTTONS
+   -------------------------------------------------------------------------- */
+.gwl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 46px;
+  padding-inline: 22px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.25s var(--ease), background 0.25s var(--ease),
+              border-color 0.25s var(--ease), color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.gwl-btn:active { transform: translateY(1px); }
+
+.gwl-btn--primary {
+  /* a fixed brand-teal fill, deliberately not theme-linked — a filled
+     primary action reads correctly on either ground without adaptation */
+  background: linear-gradient(180deg, #48D7BC, #23A38C);
+  color: #01100C;
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.28) inset, 0 8px 24px -12px rgba(35,163,140,0.55);
+}
+.gwl-btn--primary:hover { box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 12px 32px -12px rgba(35,163,140,0.7); }
+
+.gwl-btn--ghost {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.gwl-btn--ghost:hover { border-color: var(--line-strong); background: var(--panel-2); }
+
+.gwl-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all 0.3s var(--ease);
+  flex: none;
+}
+.gwl-theme-toggle:hover { border-color: var(--line-strong); background: var(--panel-2); color: var(--ink); }
+
+.gwl-btn--sm { height: 36px; padding-inline: 15px; font-size: 13px; border-radius: var(--r-xs); }
+
+/* --------------------------------------------------------------------------
+   DECOR — fine grid + vignette, drawn with gradients (no extra DOM)
+   -------------------------------------------------------------------------- */
+.gwl-gridlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--line-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 78%);
+  z-index: 0;
+}
+
+.gwl-rule { height: 1px; background: var(--line); border: 0; }
+
+/* --------------------------------------------------------------------------
+   SCROLL REVEAL
+   -------------------------------------------------------------------------- */
+.gwl-rv {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition: opacity 0.75s var(--ease), transform 0.75s var(--ease);
+  transition-delay: var(--rv-d, 0ms);
+  will-change: opacity, transform;
+}
+.gwl-rv.is-in { opacity: 1; transform: none; }
+.gwl-rv.is-in.rv-settled { will-change: auto; }
+
+/* --------------------------------------------------------------------------
+   MOTION PRIMITIVES (all pause via .is-idle set by IntersectionObserver)
+   -------------------------------------------------------------------------- */
+@keyframes gwl-dash { to { stroke-dashoffset: -1000; } }
+@keyframes gwl-ping {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+@keyframes gwl-breathe {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.9; }
+}
+@keyframes gwl-draw { to { stroke-dashoffset: 0; } }
+@keyframes gwl-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.gwl-flow { stroke-dasharray: 5 9; animation: gwl-dash 9s linear infinite; }
+
+/* fill-box makes `center` mean the element's own centre rather than the
+   centre of the SVG viewBox, so a ping expands from the marker it belongs to. */
+.gwl-ping {
+  animation: gwl-ping 2.6s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.gwl-breathe { animation: gwl-breathe 3.4s ease-in-out infinite; }
+.is-idle .gwl-flow,
+.is-idle .gwl-ping,
+.is-idle .gwl-breathe { animation-play-state: paused; }
+
+/* --------------------------------------------------------------------------
+   SCROLLYTELLING STEPS
+   Dimming inactive steps only reads well beside a sticky visual. On narrow
+   screens the visual is not pinned, so every step stays fully legible.
+   -------------------------------------------------------------------------- */
+.gwl-step { opacity: 1; transition: opacity 0.5s var(--ease); }
+@media (min-width: 1024px) {
+  .gwl-step { opacity: 0.32; }
+  .gwl-step.is-on { opacity: 1; }
+}
+
+/* --------------------------------------------------------------------------
+   RISK TOKENS
+   -------------------------------------------------------------------------- */
+.gwl-risk-low      { --risk: var(--low); }
+.gwl-risk-moderate { --risk: var(--moderate); }
+.gwl-risk-high     { --risk: var(--high); }
+.gwl-risk-critical { --risk: var(--critical); }
+
+.gwl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--r-xs);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--risk, var(--aqua));
+  background: color-mix(in srgb, var(--risk, var(--aqua)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--risk, var(--aqua)) 34%, transparent);
+  white-space: nowrap;
+}
+.gwl-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--risk, var(--aqua));
+  flex: none;
+}
+
+/* --------------------------------------------------------------------------
+   NAV
+   -------------------------------------------------------------------------- */
+.gwl-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 60;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid transparent;
+  transition: background 0.4s var(--ease), border-color 0.4s var(--ease),
+              backdrop-filter 0.4s var(--ease), height 0.4s var(--ease);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.gwl-nav.is-stuck {
+  height: 56px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  border-bottom-color: var(--line);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+.gwl-navlink {
+  position: relative;
+  padding: 7px 11px;
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--ink-2);
+  border-radius: var(--r-xs);
+  transition: color 0.25s var(--ease);
+  white-space: nowrap;
+}
+.gwl-navlink:hover { color: var(--ink); }
+.gwl-navlink.is-active { color: var(--ink); }
+.gwl-navlink.is-active::after {
+  content: '';
+  position: absolute;
+  left: 11px; right: 11px; bottom: 1px;
+  height: 1px;
+  background: var(--aqua);
+}
+
+/* mobile drawer */
+.gwl-drawer {
+  position: fixed;
+  inset: 0 0 auto 0;
+  top: 0;
+  z-index: 59;
+  padding: calc(72px + env(safe-area-inset-top, 0px)) 20px 26px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--line);
+  transform: translateY(-101%);
+  transition: transform 0.45s var(--ease);
+}
+.gwl-drawer.is-open { transform: none; }
+
+/* --------------------------------------------------------------------------
+   HERO
+   Two-column: copy on the left, the illustrated cross-section on the right,
+   sized so it never crowds the headline. Stacks — illustration below copy,
+   simplified — under 1024px.
+   -------------------------------------------------------------------------- */
+.gwl-hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  padding-top: 86px;
+  padding-bottom: 48px;
+}
+
+/* a very quiet atmospheric wash behind the whole hero — not a full-bleed
+   scene, just enough to keep the section from feeling flat */
+.gwl-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 70% at 82% 30%, color-mix(in srgb, var(--aqua) 10%, transparent) 0%, transparent 60%);
+}
+.gwl[data-theme="dark"] .gwl-hero::before {
+  background: radial-gradient(120% 70% at 82% 30%, color-mix(in srgb, var(--aqua) 16%, transparent) 0%, transparent 60%);
+}
+
+.gwl-hero-content { position: relative; z-index: 2; }
+
+.gwl-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 56px;
+}
+@media (min-width: 1024px) {
+  .gwl-hero-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 24px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   HERO ILLUSTRATION
+   -------------------------------------------------------------------------- */
+.gwl-illo {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+  aspect-ratio: 4 / 5;
+}
+@media (min-width: 1024px) {
+  .gwl-illo { max-width: none; margin-inline: 0; margin-left: auto; }
+}
+.gwl-illo svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+.gwl-illo-layer { will-change: transform; }
+
+/* the floating data chips get their own slow bob, independent of parallax */
+@keyframes gwl-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.gwl-illo-chip { animation: gwl-bob 5.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.is-idle .gwl-illo-chip { animation-play-state: paused; }
+
+@keyframes gwl-drift {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(10px); }
+}
+.gwl-illo-cloud { animation: gwl-drift 14s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.is-idle .gwl-illo-cloud { animation-play-state: paused; }
+
+@keyframes gwl-particle {
+  0%   { transform: translateY(0); opacity: var(--p-op, 0.5); }
+  50%  { transform: translateY(-10px); opacity: calc(var(--p-op, 0.5) * 1.4); }
+  100% { transform: translateY(0); opacity: var(--p-op, 0.5); }
+}
+.gwl-illo-particle { animation: gwl-particle 6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.is-idle .gwl-illo-particle { animation-play-state: paused; }
+
+.gwl-scrollcue {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.gwl-scrollcue span {
+  display: block;
+  width: 1px; height: 34px;
+  background: linear-gradient(180deg, transparent, var(--line-strong));
+  overflow: hidden;
+  position: relative;
+}
+.gwl-scrollcue span::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: 10px;
+  background: var(--aqua);
+  animation: gwl-cue 2.4s ease-in-out infinite;
+}
+@keyframes gwl-cue {
+  0%   { transform: translateY(-12px); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { transform: translateY(36px); opacity: 0; }
+}
+
+/* --------------------------------------------------------------------------
+   UTILITIES
+   -------------------------------------------------------------------------- */
+.gwl-hscroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-inline: 20px;
+  margin-inline: -20px;
+}
+.gwl-hscroll::-webkit-scrollbar { display: none; }
+.gwl-hscroll > * { scroll-snap-align: start; flex: none; }
+
+/* becomes a four-column grid on desktop. Declared here rather than with
+   Tailwind `lg:` utilities because this stylesheet loads after Tailwind and
+   would otherwise win the cascade. */
+@media (min-width: 1024px) {
+  .gwl-hscroll.gwl-lg-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    overflow: visible;
+    padding-inline: 0;
+    margin-inline: 0;
+  }
+  .gwl-hscroll.gwl-lg-grid > * { width: auto; }
+}
+
+.gwl-xscroll { overflow-x: auto; scrollbar-width: thin; }
+.gwl-xscroll::-webkit-scrollbar { height: 6px; }
+.gwl-xscroll::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
+
+.gwl-tab {
+  padding: 9px 15px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-3);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s var(--ease);
+  white-space: nowrap;
+}
+.gwl-tab:hover { color: var(--ink-2); border-color: var(--line-strong); }
+.gwl-tab.is-active {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--tint, var(--aqua)) 55%, transparent);
+  background: color-mix(in srgb, var(--tint, var(--aqua)) 12%, transparent);
+}
+
+/* phone mockup */
+.gwl-phone {
+  width: 268px;
+  border-radius: 38px;
+  padding: 10px;
+  background: linear-gradient(160deg, #1B242C, #080C11 55%);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 40px 80px -40px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,0,0,0.6);
+}
+.gwl-phone-screen {
+  border-radius: 29px;
+  background: #060A0E;
+  border: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
+  min-height: 430px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   REDUCED MOTION
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .gwl *,
+  .gwl *::before,
+  .gwl *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .gwl-rv { opacity: 1; transform: none; }
+}
