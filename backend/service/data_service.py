@@ -30,6 +30,21 @@ def get_blocks():
     """Distinct list of blocks/taluks that have at least one assigned station."""
     return sorted(set(_station_block_map.values()))
 
+def delta_toward_surface(earlier_raw: float, later_raw: float) -> float:
+    """Sign-convention-agnostic 'improvement' delta between two raw depth
+    readings taken at different times (earlier, then later).
+
+    Positive means the water moved toward the surface (improving) between
+    the two readings; negative means it moved away (declining/worsening).
+
+    Almost all stations in this dataset store depth as a negative number
+    (more negative = deeper), but a few (Amaram_1, Ammapet_1, Gundakkal)
+    store it as positive instead. A plain `later - earlier` comparison
+    silently inverts "declining" and "improving" for those stations. This
+    compares magnitude-from-surface instead, which is correct either way.
+    """
+    return abs(earlier_raw) - abs(later_raw)
+
 def safe_float(val, default=0.0):
     """Convert val to float; return default if None, NaN, or infinite."""
     if val is None:

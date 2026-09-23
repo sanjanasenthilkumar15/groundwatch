@@ -2,6 +2,8 @@
 # GROUNDWATER EXPLAINABILITY ENGINE
 # ==================================================
 
+from backend.service.data_service import delta_toward_surface
+
 FEATURE_IMPORTANCE = {
     "gw_lag_2": 0.352141,
     "gw_lag_1": 0.301070,
@@ -127,6 +129,19 @@ def explain_prediction(input_data: dict) -> dict:
 
     explanations = []
 
+    # gw_change_1m is a raw signed delta. Most stations store depth as
+    # negative (more negative = deeper), but a few store it as positive
+    # instead - a raw threshold check would silently call an improving
+    # month a "decline" for those stations. Convert once, up front, to a
+    # sign-agnostic "toward/away from surface" delta and use it wherever
+    # gw_change_1m would otherwise be read directly below.
+    current_groundwater = float(input_data.get("current_groundwater", 0))
+    raw_gw_change = float(input_data.get("gw_change_1m", 0))
+    effective_gw_change = delta_toward_surface(
+        current_groundwater - raw_gw_change,
+        current_groundwater
+    )
+
     # Sort features by model importance
     sorted_features = sorted(
         FEATURE_IMPORTANCE.items(),
@@ -137,7 +152,7 @@ def explain_prediction(input_data: dict) -> dict:
     # Return top 5 most influential features
     for feature, importance in sorted_features[:5]:
 
-        value = float(input_data.get(feature, 0))
+        value = effective_gw_change if feature == "gw_change_1m" else float(input_data.get(feature, 0))
 
         explanations.append(
             {
@@ -160,9 +175,7 @@ def explain_prediction(input_data: dict) -> dict:
     # Overall interpretation
     # --------------------------------------------------
 
-    gw_change = float(
-        input_data.get("gw_change_1m", 0)
-    )
+    gw_change = effective_gw_change
 
     rainfall = float(
         input_data.get("rainfall_mm", 0)

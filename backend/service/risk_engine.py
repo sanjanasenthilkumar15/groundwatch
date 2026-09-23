@@ -2,6 +2,8 @@
 # GROUNDWATER RISK ENGINE
 # ==================================================
 
+from backend.service.data_service import delta_toward_surface
+
 
 def calculate_risk(
     predicted_groundwater: float,
@@ -28,15 +30,24 @@ def calculate_risk(
 
     # --------------------------------------------------
     # 1. RECENT GROUNDWATER TREND
+    #
+    # gw_change_1m is a raw signed delta, and most stations store
+    # depth as negative (more negative = deeper) - but a few store
+    # it as positive instead, which would silently invert "declining"
+    # into "improving" for those stations if used directly. Convert
+    # to a sign-agnostic "toward/away from surface" delta first.
     # --------------------------------------------------
 
-    if gw_change_1m < -2:
+    previous_groundwater = current_groundwater - gw_change_1m
+    trend_change = delta_toward_surface(previous_groundwater, current_groundwater)
+
+    if trend_change < -2:
         risk_score += 40
 
-    elif gw_change_1m < -1:
+    elif trend_change < -1:
         risk_score += 30
 
-    elif gw_change_1m < 0:
+    elif trend_change < 0:
         risk_score += 15
 
     # --------------------------------------------------
@@ -48,15 +59,19 @@ def calculate_risk(
 
     prediction_score = 0
 
-    if predicted_groundwater > current_groundwater + 2:
+    # Same sign-agnostic conversion as the trend component above -
+    # positive means the forecast points toward the surface (improving).
+    prediction_change = delta_toward_surface(current_groundwater, predicted_groundwater)
+
+    if prediction_change > 2:
 
         prediction_score = 0
 
-    elif predicted_groundwater >= current_groundwater - 1:
+    elif prediction_change >= -1:
 
         prediction_score = 10
 
-    elif predicted_groundwater >= current_groundwater - 3:
+    elif prediction_change >= -3:
 
         prediction_score = 25
 

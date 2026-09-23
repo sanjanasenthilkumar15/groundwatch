@@ -2,6 +2,9 @@
 # GROUNDWATER STRESS CLOCK
 # ==================================================
 
+from backend.service.data_service import delta_toward_surface
+
+
 def calculate_stress_clock(
     current_groundwater: float,
     predicted_groundwater: float,
@@ -28,7 +31,7 @@ def calculate_stress_clock(
     # Outlook (forecast-based)
     # ----------------------------------------------
 
-    outlook_change = predicted_groundwater - current_groundwater
+    outlook_change = delta_toward_surface(current_groundwater, predicted_groundwater)
 
     if abs(outlook_change) < STABLE_THRESHOLD:
         outlook_status = "stable"
@@ -59,14 +62,17 @@ def calculate_stress_clock(
     # Recent trend (real last-month data)
     # ----------------------------------------------
 
-    if abs(gw_change_1m) < STABLE_THRESHOLD:
+    previous_groundwater = current_groundwater - gw_change_1m
+    recent_change = delta_toward_surface(previous_groundwater, current_groundwater)
+
+    if abs(recent_change) < STABLE_THRESHOLD:
         recent_status = "stable"
-    elif gw_change_1m < 0:
+    elif recent_change < 0:
         recent_status = "declining"
     else:
         recent_status = "improving"
 
-    recent_magnitude = abs(gw_change_1m)
+    recent_magnitude = abs(recent_change)
 
     if recent_status == "declining":
         recent_message = f"Water table dropped {recent_magnitude:.2f}m over the last month."
